@@ -1,1 +1,4 @@
-# CSCI-5619-Fall-2020-Project
+# Project - Omnitool and Immersive Map
+
+### Yazhao Li - li001650@umn.edu
+### Anlan Zhang - zhan6841@umn.edu
