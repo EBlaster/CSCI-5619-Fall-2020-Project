@@ -84,6 +84,14 @@ class Game {
   private selectedInstancedMesh: InstancedMesh | null;
   private selectedMaterial: StandardMaterial | null;
 
+  // Anlan 12122020
+  private world: Mesh | null;
+  private worldOriginalPosition: Vector3;
+  private cameraOriginalPosition: Vector3;
+  private mapMode: boolean;
+  private originalLocomotionMode: LocomotionMode;
+  private originalFlyMode: boolean;
+
   constructor() {
     // Get the canvas element 
     this.canvas = document.getElementById("renderCanvas") as HTMLCanvasElement;
@@ -119,6 +127,14 @@ class Game {
     this.selectedMesh = null;
     this.selectedInstancedMesh = null;
     this.selectedMaterial = null;
+
+    // Anlan 12122020
+    this.world = null;
+    this.worldOriginalPosition = new Vector3(0, .01, 0);
+    this.cameraOriginalPosition = new Vector3(0, 1.6, 0);
+    this.mapMode = false;
+    this.originalLocomotionMode = this.locomotionMode;
+    this.originalFlyMode = this.flyMode;
   }
 
   start(): void {
@@ -261,6 +277,11 @@ class Game {
           this.groundMeshes.push(mesh);
           xrHelper.teleportation.addFloorMesh(mesh);
         }
+        // Anlan 12122020
+        if(mesh.name == "world"){
+          this.world = <Mesh>mesh;
+          environment!.ground!.setParent(this.world);
+        }
       });
 
       // Show the debug layer
@@ -306,6 +327,43 @@ class Game {
     testButton.pointerEnterAnimation = () => {
       testButtonMaterial.diffuseColor = hoverColor;
     }
+
+    // Anlan 12122020
+    testButton.onPointerDownObservable.add(() => {
+      if(this.mapMode == true){
+        // resume the original position
+        this.world!.position.x = this.worldOriginalPosition.x;
+        this.world!.position.y = this.worldOriginalPosition.y;
+        this.world!.position.z = this.worldOriginalPosition.z;
+        this.xrCamera!.position.x = this.cameraOriginalPosition.x;
+        this.xrCamera!.position.y = this.cameraOriginalPosition.y;
+        this.xrCamera!.position.z = this.cameraOriginalPosition.z;
+
+        // resume original fly mode and locomotion mode
+        this.flyMode = this.originalFlyMode;
+        this.locomotionMode = this.originalLocomotionMode;
+
+        this.mapMode = false;
+      }
+      else{
+        // save the original position
+        this.worldOriginalPosition.x = this.world!.position.x;
+        this.worldOriginalPosition.y = this.world!.position.y;
+        this.worldOriginalPosition.z = this.world!.position.z;
+        this.cameraOriginalPosition.x = this.xrCamera!.position.x;
+        this.cameraOriginalPosition.y = this.xrCamera!.position.y;
+        this.cameraOriginalPosition.z = this.xrCamera!.position.z;
+        this.world!.position.y -= 20;
+        
+        // save original fly and locomotion mode, set fly mode as true and set locomotion mode as visualizedtele
+        this.originalLocomotionMode = this.locomotionMode;
+        this.originalFlyMode = this.flyMode;
+        this.flyMode = true;
+        this.locomotionMode = LocomotionMode.visualizedTele;
+
+        this.mapMode = true;
+      }
+  });
 
     // Create a colorpicker
 
@@ -425,109 +483,157 @@ class Game {
     this.onRightA(this.rightController?.motionController?.getComponent("a-button"));
     this.onRightB(this.rightController?.motionController?.getComponent("b-button"));
     this.onRightThumbstick(this.rightController?.motionController?.getComponent("xr-standard-thumbstick"));
+    this.onLeftThumbStick(this.leftController?.motionController?.getComponent("xr-standard-thumbstick"));
   }
 
   private onRightThumbstick(component?: WebXRControllerComponent) {
     if (component?.changes.axes) {
-      // View-directed steering
-      if (this.locomotionMode == LocomotionMode.viewDirected) {
-        // Get the current camera direction
-        var directionVector = this.xrCamera!.getDirection(Axis.Z);
+      if(this.mapMode == false){
+        // View-directed steering
+        if (this.locomotionMode == LocomotionMode.viewDirected) {
+          // Get the current camera direction
+          var directionVector = this.xrCamera!.getDirection(Axis.Z);
 
-        if (!this.flyMode) {
-          directionVector.y = 0;
-          directionVector = directionVector.normalizeToNew();
-        }
-
-        // Use delta time to calculate the move distance based on speed of 3 m/sec
-        var moveDistance = -component.axes.y * (this.engine.getDeltaTime() / 1000) * 3;
-
-        // Translate the camera forward
-        this.xrCamera!.position.addInPlace(directionVector.scale(moveDistance));
-
-        // Snap turn
-        var turnAngle = 20;
-        if (component.axes.x > .8 && !this.turned) {
-          this.turned = true;
-          var cameraRotation = Quaternion.FromEulerAngles(0, turnAngle * Math.PI / 180, 0);
-          this.xrCamera!.rotationQuaternion.multiplyInPlace(cameraRotation);
-        } else if (component.axes.x < -.8 && !this.turned) {
-          this.turned = true;
-          var cameraRotation = Quaternion.FromEulerAngles(0, -turnAngle * Math.PI / 180, 0);
-          this.xrCamera!.rotationQuaternion.multiplyInPlace(cameraRotation);
-        } else if ((component.axes.x <= .5 && component.axes.x >= -.5) && this.turned) {
-          this.turned = false;
-        }
-      } else if (this.locomotionMode == LocomotionMode.handDirected) {
-        // Get the current hand direction
-        var directionVector = this.rightController!.pointer.forward;
-
-        if (!this.flyMode) {
-          directionVector.y = 0;
-          directionVector = directionVector.normalizeToNew();
-        }
-
-        // Use delta time to calculate the move distance based on speed of 3 m/sec
-        var moveDistance = -component.axes.y * (this.engine.getDeltaTime() / 1000) * 3;
-
-        // Translate the camera forward
-        this.xrCamera!.position.addInPlace(directionVector.scale(moveDistance));
-
-        // Snap turn
-        var turnAngle = 20;
-        if (component.axes.x > .8 && !this.turned) {
-          this.turned = true;
-          var cameraRotation = Quaternion.FromEulerAngles(0, turnAngle * Math.PI / 180, 0);
-          this.xrCamera!.rotationQuaternion.multiplyInPlace(cameraRotation);
-        } else if (component.axes.x < -.8 && !this.turned) {
-          this.turned = true;
-          var cameraRotation = Quaternion.FromEulerAngles(0, -turnAngle * Math.PI / 180, 0);
-          this.xrCamera!.rotationQuaternion.multiplyInPlace(cameraRotation);
-        } else if ((component.axes.x <= .5 && component.axes.x >= -.5) && this.turned) {
-          this.turned = false;
-        }
-      } else if (this.locomotionMode == LocomotionMode.teleportation) {  // Teleportation
-        // If the thumbstick is moved forward
-        if (component.axes.y < -.75) {
-          // Create a new ray cast
-          var ray = new Ray(this.rightController!.pointer.position,
-            this.rightController!.pointer.forward, 20);
-          var pickInfo = this.scene.pickWithRay(ray);
-
-          // If the ray cast intersected a ground mesh
-          if (pickInfo?.hit && this.groundMeshes.includes(pickInfo.pickedMesh!)) {
-            this.teleportPoint = pickInfo.pickedPoint;
-            this.teleportBox!.visibility = 1;
-            var rotation = this.xrCamera!.getDirection(Axis.Z);
-            rotation.y = 0;
-            this.teleportBox!.lookAt(this.teleportBox!.position.add(rotation));
-            this.teleportBox!.rotate(Axis.Y,
-              -this.rightController?.pointer.rotationQuaternion?.toEulerAngles().z!);
-            this.teleportBox!.position = this.teleportPoint!.add(new Vector3(0, .2, 0));
-          } else {
-            this.teleportPoint = null;
-            this.teleportBox!.visibility = 0;
+          if (!this.flyMode) {
+            directionVector.y = 0;
+            directionVector = directionVector.normalizeToNew();
           }
-        } else if (component.axes.y == 0) {  // If thumbstick returns to the rest position
-          this.teleportBox!.visibility = 0;
 
-          // If we have a valid targer point, then teleport the user
-          if (this.teleportPoint) {
-            this.xrCamera!.position.x = this.teleportPoint.x;
-            this.xrCamera!.position.y = this.teleportPoint.y + this.xrCamera!.realWorldHeight;
-            this.xrCamera!.position.z = this.teleportPoint.z;
-            this.teleportPoint = null;
-            var cameraRotation = Quaternion.FromEulerAngles
-              (0, -this.rightController?.pointer.rotationQuaternion?.toEulerAngles().z!, 0);
+          // Use delta time to calculate the move distance based on speed of 3 m/sec
+          var moveDistance = -component.axes.y * (this.engine.getDeltaTime() / 1000) * 3;
+
+          // Translate the camera forward
+          this.xrCamera!.position.addInPlace(directionVector.scale(moveDistance));
+
+          // Snap turn
+          var turnAngle = 20;
+          if (component.axes.x > .8 && !this.turned) {
+            this.turned = true;
+            var cameraRotation = Quaternion.FromEulerAngles(0, turnAngle * Math.PI / 180, 0);
             this.xrCamera!.rotationQuaternion.multiplyInPlace(cameraRotation);
+          } else if (component.axes.x < -.8 && !this.turned) {
+            this.turned = true;
+            var cameraRotation = Quaternion.FromEulerAngles(0, -turnAngle * Math.PI / 180, 0);
+            this.xrCamera!.rotationQuaternion.multiplyInPlace(cameraRotation);
+          } else if ((component.axes.x <= .5 && component.axes.x >= -.5) && this.turned) {
+            this.turned = false;
+          }
+        } else if (this.locomotionMode == LocomotionMode.handDirected) {
+          // Get the current hand direction
+          var directionVector = this.rightController!.pointer.forward;
+
+          if (!this.flyMode) {
+            directionVector.y = 0;
+            directionVector = directionVector.normalizeToNew();
+          }
+
+          // Use delta time to calculate the move distance based on speed of 3 m/sec
+          var moveDistance = -component.axes.y * (this.engine.getDeltaTime() / 1000) * 3;
+
+          // Translate the camera forward
+          this.xrCamera!.position.addInPlace(directionVector.scale(moveDistance));
+
+          // Snap turn
+          var turnAngle = 20;
+          if (component.axes.x > .8 && !this.turned) {
+            this.turned = true;
+            var cameraRotation = Quaternion.FromEulerAngles(0, turnAngle * Math.PI / 180, 0);
+            this.xrCamera!.rotationQuaternion.multiplyInPlace(cameraRotation);
+          } else if (component.axes.x < -.8 && !this.turned) {
+            this.turned = true;
+            var cameraRotation = Quaternion.FromEulerAngles(0, -turnAngle * Math.PI / 180, 0);
+            this.xrCamera!.rotationQuaternion.multiplyInPlace(cameraRotation);
+          } else if ((component.axes.x <= .5 && component.axes.x >= -.5) && this.turned) {
+            this.turned = false;
+          }
+        } else if (this.locomotionMode == LocomotionMode.teleportation) {  // Teleportation
+          // If the thumbstick is moved forward
+          if (component.axes.y < -.75) {
+            // Create a new ray cast
+            var ray = new Ray(this.rightController!.pointer.position,
+              this.rightController!.pointer.forward, 20);
+            var pickInfo = this.scene.pickWithRay(ray);
+
+            // If the ray cast intersected a ground mesh
+            if (pickInfo?.hit && this.groundMeshes.includes(pickInfo.pickedMesh!)) {
+              this.teleportPoint = pickInfo.pickedPoint;
+              this.teleportBox!.visibility = 1;
+              var rotation = this.xrCamera!.getDirection(Axis.Z);
+              rotation.y = 0;
+              this.teleportBox!.lookAt(this.teleportBox!.position.add(rotation));
+              this.teleportBox!.rotate(Axis.Y,
+                -this.rightController?.pointer.rotationQuaternion?.toEulerAngles().z!);
+              this.teleportBox!.position = this.teleportPoint!.add(new Vector3(0, .2, 0));
+            } else {
+              this.teleportPoint = null;
+              this.teleportBox!.visibility = 0;
+            }
+          } else if (component.axes.y == 0) {  // If thumbstick returns to the rest position
+            this.teleportBox!.visibility = 0;
+
+            // If we have a valid targer point, then teleport the user
+            if (this.teleportPoint) {
+              this.xrCamera!.position.x = this.teleportPoint.x;
+              this.xrCamera!.position.y = this.teleportPoint.y + this.xrCamera!.realWorldHeight;
+              this.xrCamera!.position.z = this.teleportPoint.z;
+              this.teleportPoint = null;
+              var cameraRotation = Quaternion.FromEulerAngles
+                (0, -this.rightController?.pointer.rotationQuaternion?.toEulerAngles().z!, 0);
+              this.xrCamera!.rotationQuaternion.multiplyInPlace(cameraRotation);
+            }
+          }
+        } else {  // Visualized Teleportation
+          // If the thumbstick is moved forward
+          if (component.axes.y < -.75) {
+            // Create a new ray cast
+            var ray = new Ray(this.rightController!.pointer.position,
+              this.rightController!.pointer.forward, 20);
+            var pickInfo = this.scene.pickWithRay(ray);
+
+            // If the ray cast intersected a ground mesh
+            if (pickInfo?.hit && this.groundMeshes.includes(pickInfo.pickedMesh!)) {
+              this.teleportPoint = pickInfo.pickedPoint;
+              this.workspaceBox!.visibility = 1;
+              this.workspaceUser!.visibility = 1;
+              this.workspaceBox!.position = this.teleportPoint!.add(new Vector3(0, 1.5, 0));
+              var userPos = this.xrSessionManager!.currentFrame?.
+                getViewerPose(this.xrSessionManager!.baseReferenceSpace)?.transform.position;
+              this.workspaceUser!.position = this.teleportPoint!.add
+                (new Vector3(userPos?.x, .2, userPos?.z));
+              var userOri = this.xrSessionManager!.currentFrame?.getViewerPose(this.xrSessionManager!.baseReferenceSpace)?.transform.orientation;
+              var userOriVec = new Quaternion(userOri?.x, userOri?.y, userOri?.z, userOri?.w).
+                toEulerAngles();
+              this.workspaceUser!.rotation = userOriVec.multiply(new Vector3(0, 1, 0));
+            } else {
+              this.teleportPoint = null;
+              this.workspaceBox!.visibility = 0;
+              this.workspaceUser!.visibility = 0;
+            }
+          } else if (component.axes.y == 0) {  // If thumbstick returns to the rest position
+            this.workspaceBox!.visibility = 0;
+            this.workspaceUser!.visibility = 0;
+
+            // If we have a valid targer point, then teleport the user
+            if (this.teleportPoint) {
+              this.xrCamera!.position.x = this.teleportPoint.x;
+              this.xrCamera!.position.y = this.teleportPoint.y + this.xrCamera!.realWorldHeight;
+              this.xrCamera!.position.z = this.teleportPoint.z;
+              this.teleportPoint = null;
+              var cameraRotation = Quaternion.FromEulerAngles
+                (0, -this.rightController?.pointer.rotationQuaternion?.toEulerAngles().z!, 0);
+              this.xrCamera!.rotationQuaternion.multiplyInPlace(cameraRotation);
+            }
           }
         }
-      } else {  // Visualized Teleportation
+      }
+      else{
+        // Anlan 12122020
+        // Visualized Teleportation
         // If the thumbstick is moved forward
         if (component.axes.y < -.75) {
           // Create a new ray cast
           var ray = new Ray(this.rightController!.pointer.position,
-            this.rightController!.pointer.forward, 20);
+            this.rightController!.pointer.forward, 100);
           var pickInfo = this.scene.pickWithRay(ray);
 
           // If the ray cast intersected a ground mesh
@@ -555,13 +661,25 @@ class Game {
 
           // If we have a valid targer point, then teleport the user
           if (this.teleportPoint) {
-            this.xrCamera!.position.x = this.teleportPoint.x;
-            this.xrCamera!.position.y = this.teleportPoint.y + this.xrCamera!.realWorldHeight;
-            this.xrCamera!.position.z = this.teleportPoint.z;
+            this.xrCamera!.position.x = this.teleportPoint.x + this.worldOriginalPosition.x - this.world!.position.x;
+            this.xrCamera!.position.y = this.teleportPoint.y + this.xrCamera!.realWorldHeight + this.worldOriginalPosition.y - this.world!.position.y;
+            this.xrCamera!.position.z = this.teleportPoint.z + this.worldOriginalPosition.z - this.world!.position.z;
             this.teleportPoint = null;
             var cameraRotation = Quaternion.FromEulerAngles
               (0, -this.rightController?.pointer.rotationQuaternion?.toEulerAngles().z!, 0);
             this.xrCamera!.rotationQuaternion.multiplyInPlace(cameraRotation);
+
+            // resume the original position
+            this.world!.position.x = this.worldOriginalPosition.x;
+            this.world!.position.y = this.worldOriginalPosition.y;
+            this.world!.position.z = this.worldOriginalPosition.z;
+            
+            // resume original fly mode and locomotion mode
+            this.flyMode = this.originalFlyMode;
+            this.locomotionMode = this.originalLocomotionMode;
+            
+            // exit map mode
+            this.mapMode = false;
           }
         }
       }
@@ -571,10 +689,13 @@ class Game {
   // Toggle for locomotion mode
   private onRightA(component?: WebXRControllerComponent) {
     if (component?.changes.pressed?.current) {
-      if (this.locomotionMode == LocomotionMode.visualizedTele) {
-        this.locomotionMode = 0;
-      } else {
-        this.locomotionMode += 1;
+      // Anlan 12122020
+      if(this.mapMode == false){
+        if (this.locomotionMode == LocomotionMode.visualizedTele) {
+          this.locomotionMode = 0;
+        } else {
+          this.locomotionMode += 1;
+        }
       }
     }
   }
@@ -589,7 +710,32 @@ class Game {
       }
     }
   }
+
+  // Anlan 12122020
+  // Map Zoom in/out
+  private onLeftThumbStick(component?: WebXRControllerComponent) {
+    if (component?.changes.axes) {
+      if(this.mapMode == true){
+        // View-directed steering
+        // Get the current camera direction
+        var directionVector = this.xrCamera!.getDirection(Axis.Z);
+
+        if (!this.flyMode) {
+          directionVector.y = 0;
+          directionVector = directionVector.normalizeToNew();
+        }
+
+        // Use delta time to calculate the move distance based on speed of 10 m/sec for zoom in/out
+        var moveDistance = -component.axes.y * (this.engine.getDeltaTime() / 1000) * 10;
+
+        // Translate the camera forward
+        this.xrCamera!.position.addInPlace(directionVector.scale(moveDistance));
+      }
+    }
+  }
+
 }
+
 /******* End of the Game class ******/
 
 // start the game
