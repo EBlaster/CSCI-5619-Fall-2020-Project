@@ -30,9 +30,13 @@ import { AssetsManager } from "@babylonjs/core/Misc";
 import { Animation } from "@babylonjs/core/Animations/animation";
 import { HighlightLayer } from "@babylonjs/core";
 import { GUI3DManager } from "@babylonjs/gui/3D/gui3DManager"
+import { Control } from "@babylonjs/gui/2D/controls";
 import { Button3D } from "@babylonjs/gui/3D/controls/button3D"
 import { ColorPicker } from "@babylonjs/gui/2D/controls/colorpicker"
 import { StackPanel } from "@babylonjs/gui/2D/controls/stackPanel"
+import { Checkbox } from "@babylonjs/gui/2D/controls/checkbox"
+import { Slider } from "@babylonjs/gui/2D/controls/sliders/slider"
+import { RadioButton } from "@babylonjs/gui/2D/controls/radioButton"
 import { HolographicButton } from "@babylonjs/gui/3D/controls/holographicButton"
 import { TextBlock } from "@babylonjs/gui/2D/controls/textBlock"
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
@@ -84,6 +88,9 @@ class Game {
   private selectedInstancedMesh: InstancedMesh | null;
   private selectedMaterial: StandardMaterial | null;
 
+  private configurableMesh: Mesh | null;
+  private moveSpeed: number;
+
   // Anlan 12122020
   private world: Mesh | null;
   private worldOriginalPosition: Vector3;
@@ -93,7 +100,7 @@ class Game {
   private originalFlyMode: boolean;
 
   constructor() {
-    // Get the canvas element 
+    // Get the canvas element
     this.canvas = document.getElementById("renderCanvas") as HTMLCanvasElement;
 
     // Generate the BABYLON 3D engine
@@ -127,6 +134,8 @@ class Game {
     this.selectedMesh = null;
     this.selectedInstancedMesh = null;
     this.selectedMaterial = null;
+    this.configurableMesh = null;
+    this.moveSpeed = 3;
 
     // Anlan 12122020
     this.world = null;
@@ -167,11 +176,11 @@ class Game {
     // Create a directional light
     var directionalLight = new DirectionalLight("directionalLight",
       new Vector3(-60, -120, 100), this.scene);
-    directionalLight.intensity = 1.0;
+    directionalLight.intensity = 8;
     directionalLight.diffuse = new Color3(.25, .25, .25);
 
-    var light_hemi = new HemisphericLight("hemiLight", new Vector3(0, 1, 0), this.scene);
-    light_hemi.intensity = 0.6;
+    var hemisphericLight = new HemisphericLight("hemiLight", new Vector3(0, 1, 0), this.scene);
+    hemisphericLight.intensity = 1;
 
     // Creates a default skybox
     const environment = this.scene.createDefaultEnvironment({
@@ -181,13 +190,21 @@ class Game {
     });
 
     // Creates a skybox
-    var skyboxMaterial = new StandardMaterial("skyBox", this.scene);
-    skyboxMaterial.backFaceCulling = false;
-    skyboxMaterial.reflectionTexture = new CubeTexture("assets/textures/skybox", this.scene);
-    skyboxMaterial.reflectionTexture.coordinatesMode = Texture.SKYBOX_MODE;
-    skyboxMaterial.diffuseColor = new Color3(0, 0, 0);
-    skyboxMaterial.specularColor = new Color3(0, 0, 0);
-    environment!.skybox!.material = skyboxMaterial;
+    var skyboxDayMaterial = new StandardMaterial("skyboxDay", this.scene);
+    skyboxDayMaterial.backFaceCulling = false;
+    skyboxDayMaterial.reflectionTexture = new CubeTexture("assets/textures/skybox", this.scene);
+    skyboxDayMaterial.reflectionTexture.coordinatesMode = Texture.SKYBOX_MODE;
+    skyboxDayMaterial.diffuseColor = new Color3(0, 0, 0);
+    skyboxDayMaterial.specularColor = new Color3(0, 0, 0);
+
+    var skyboxNightMaterial = new StandardMaterial("skyboxNight", this.scene);
+    skyboxNightMaterial.backFaceCulling = false;
+    skyboxNightMaterial.reflectionTexture = new CubeTexture("assets/textures/skybox2", this.scene);
+    skyboxNightMaterial.reflectionTexture.coordinatesMode = Texture.SKYBOX_MODE;
+    skyboxNightMaterial.diffuseColor = new Color3(0, 0, 0);
+    skyboxNightMaterial.specularColor = new Color3(0, 0, 0);
+
+    environment!.skybox!.material = skyboxDayMaterial;
 
     var groundMaterial = new StandardMaterial("ground", this.scene);
     groundMaterial.diffuseColor = new Color3(0, 0, 0);
@@ -291,46 +308,266 @@ class Game {
     // The manager automates some of the GUI creation steps
     var guiManager = new GUI3DManager(this.scene);
 
-    // Create a test button
-    var testButton = new Button3D("testButton");
-    guiManager.addControl(testButton);
-    testButton.position = new Vector3(0, 0, 0);
-    testButton.scaling = new Vector3(.1, .05, .1);
+    var controllerGuiTransform = new TransformNode("controllerGuiTransform", this.scene);
+    controllerGuiTransform.position = new Vector3(-.1, -.1, -.3);
+    controllerGuiTransform.rotation = new Vector3(Math.PI * .3, Math.PI * .5, 0);
 
-    // Link a transform node so we can move the button around
-    var testButtonTransform = new TransformNode("testButtonTransform", this.scene);
-    testButtonTransform.rotation.y = 90 * Math.PI / 180;
-    testButton.linkToTransformNode(testButtonTransform);
+    // Create a night mode button
+    var nightModeButton = new Button3D("nightModeButton");
+    guiManager.addControl(nightModeButton);
+    nightModeButton.scaling = new Vector3(.1, .05, .1);
 
-    // Create the test button text
-    var testButtonText = new TextBlock();
-    testButtonText.text = "Hello world!";
-    testButtonText.color = "white";
-    testButtonText.fontSize = 12;
-    testButtonText.scaleX = 2;
-    testButtonText.scaleY = 4;
-    testButtonText.rotation = Math.PI;
-    testButton.content = testButtonText;
+    var nightModeButtonTransform = new TransformNode("nightModeButtonTransform", this.scene);
+    nightModeButtonTransform.position = new Vector3(0, 0, 0);
+    nightModeButtonTransform.parent = controllerGuiTransform;
+    nightModeButton.linkToTransformNode(nightModeButtonTransform);
+
+    // Create the night mode button text
+    var nightModeButtonText = new TextBlock();
+    nightModeButtonText.text = "Night Mode";
+    nightModeButtonText.color = "white";
+    nightModeButtonText.fontSize = 12;
+    nightModeButtonText.scaleX = 2;
+    nightModeButtonText.scaleY = 4;
+    nightModeButtonText.rotation = Math.PI;
+    nightModeButton.content = nightModeButtonText;
 
     // Type cast the button material so we can change the color
-    var testButtonMaterial = <StandardMaterial>testButton.mesh!.material;
+    var buttonMaterial = <StandardMaterial>nightModeButton.mesh!.material;
 
+    var backgroundColorDay = new Color3(1, 1, 200 / 255);
+    var backgroundColorNight = new Color3(120 / 255, 100 / 255, 120 / 255);
+    var hoverColorDay = new Color3(200 / 255, 200 / 255, 160 / 255);
+    var hoverColorNight = new Color3(170 / 255, 150 / 255, 170 / 255);
     // Custom background color
-    var backgroundColor = new Color3(.284, .73, .831);
-    testButtonMaterial.diffuseColor = backgroundColor;
-    testButton.pointerOutAnimation = () => {
-      testButtonMaterial.diffuseColor = backgroundColor;
+    buttonMaterial.diffuseColor = backgroundColorDay;
+    nightModeButton.pointerOutAnimation = () => {
+      if (nightModeButtonText.text == "Night Mode") {
+        buttonMaterial.diffuseColor = backgroundColorDay;
+      } else {
+        buttonMaterial.diffuseColor = backgroundColorNight;
+      }
     }
-
     // Custom hover color
-    var hoverColor = new Color3(.752, .53, .735);
-    testButton.pointerEnterAnimation = () => {
-      testButtonMaterial.diffuseColor = hoverColor;
+    nightModeButton.pointerEnterAnimation = () => {
+      if (nightModeButtonText.text == "Night Mode") {
+        buttonMaterial.diffuseColor = hoverColorDay;
+      } else {
+        buttonMaterial.diffuseColor = hoverColorNight;
+      }
     }
+    // Change the mode when button is pressed
+    nightModeButton.onPointerDownObservable.add(() => {
+      if (nightModeButtonText.text == "Night Mode") {
+        buttonMaterial.diffuseColor = hoverColorNight;
+        environment!.skybox!.material = skyboxNightMaterial;
+        hemisphericLight.intensity = 0;
+        directionalLight.intensity = 0;
+        nightModeButtonText.text = "Day Mode"
+      } else {
+        buttonMaterial.diffuseColor = hoverColorDay;
+        environment!.skybox!.material = skyboxDayMaterial;
+        hemisphericLight.intensity = 1;
+        directionalLight.intensity = 8;
+        nightModeButtonText.text = "Night Mode"
+      }
+    });
+
+    // Create a map mode button
+    var mapModeButton = new Button3D("mapModeButton");
+    guiManager.addControl(mapModeButton);
+    mapModeButton.scaling = new Vector3(.1, .05, .1);
+
+    var mapModeButtonTransform = new TransformNode("mapModeButtonTransform", this.scene);
+    mapModeButtonTransform.position = new Vector3(0, -.12, 0);
+    mapModeButtonTransform.parent = controllerGuiTransform;
+    mapModeButton.linkToTransformNode(mapModeButtonTransform);
+
+    var mapModeButtonText = new TextBlock();
+    mapModeButtonText.text = "Map Mode";
+    mapModeButtonText.color = "white";
+    mapModeButtonText.fontSize = 12;
+    mapModeButtonText.scaleX = 2;
+    mapModeButtonText.scaleY = 4;
+    mapModeButtonText.rotation = Math.PI;
+    mapModeButton.content = mapModeButtonText;
+
+    // Create a locomotion mode button
+    var locoModeButton = new Button3D("locoModeButton");
+    guiManager.addControl(locoModeButton);
+    locoModeButton.scaling = new Vector3(.1, .05, .1);
+
+    var locoModeButtonTransform = new TransformNode("locoModeButtonTransform", this.scene);
+    locoModeButtonTransform.position = new Vector3(0, -.06, 0);
+    locoModeButtonTransform.parent = controllerGuiTransform;
+    locoModeButton.linkToTransformNode(locoModeButtonTransform);
+
+    var locoModeButtonText = new TextBlock();
+    locoModeButtonText.text = "Locomotion Mode";
+    locoModeButtonText.color = "white";
+    locoModeButtonText.fontSize = 12;
+    locoModeButtonText.scaleX = 2;
+    locoModeButtonText.scaleY = 4;
+    locoModeButtonText.rotation = Math.PI;
+    locoModeButton.content = locoModeButtonText;
+
+    var configPlane = MeshBuilder.CreatePlane("configPlane",
+      { width: 0.26, height: 0.23 }, this.scene);
+    var configPlaneTransform = new TransformNode("configPlaneTransform");
+    configPlaneTransform.position = new Vector3(0, -.25, 0);
+    configPlaneTransform.rotation = new Vector3(150 * Math.PI / 180, Math.PI, 0);
+    configPlane.parent = configPlaneTransform;
+    configPlaneTransform.parent = controllerGuiTransform;
+    configPlane.isVisible = false;
+
+    var configTexture = AdvancedDynamicTexture.CreateForMesh(configPlane, 260, 230);
+    configTexture.background = (new Color4(.5, .5, .5, .75)).toHexString();
+
+    // Create a stack panel for the radio buttons
+    var locoModePanel = new StackPanel("locoModePanel");
+    locoModePanel.widthInPixels = 250;
+    locoModePanel.isVertical = true;
+    locoModePanel.paddingLeftInPixels = 10;
+    locoModePanel.paddingTopInPixels = 10;
+    locoModePanel.verticalAlignment = StackPanel.VERTICAL_ALIGNMENT_TOP;
+    locoModePanel.horizontalAlignment = StackPanel.HORIZONTAL_ALIGNMENT_LEFT;
+
+    configTexture.addControl(locoModePanel);
+
+    var locoModeRadio1 = new RadioButton("locoModeRadio1");
+    locoModeRadio1.isChecked = true;
+    locoModeRadio1.width = "20px";
+    locoModeRadio1.height = "20px";
+    locoModeRadio1.color = "white";
+    locoModeRadio1.background = "black";
+
+    var locoModeRadio2 = new RadioButton("locoModeRadio2");
+    locoModeRadio2.width = "20px";
+    locoModeRadio2.height = "20px";
+    locoModeRadio2.color = "white";
+    locoModeRadio2.background = "black";
+
+    var locoModeRadio3 = new RadioButton("locoModeRadio3");
+    locoModeRadio3.width = "20px";
+    locoModeRadio3.height = "20px";
+    locoModeRadio3.color = "white";
+    locoModeRadio3.background = "black";
+
+    var locoModeRadio4 = new RadioButton("locoModeRadio4");
+    locoModeRadio4.width = "20px";
+    locoModeRadio4.height = "20px";
+    locoModeRadio4.color = "white";
+    locoModeRadio4.background = "black";
+
+    var flyModeCheckbox = new Checkbox("flyModeCheckbox");
+    flyModeCheckbox.width = "20px";
+    flyModeCheckbox.height = "20px";
+    flyModeCheckbox.color = "white";
+    flyModeCheckbox.background = "black";
+    flyModeCheckbox.isChecked = false;
+
+    var moveSpeedSlider = new Slider("moveSpeedSlider");
+    moveSpeedSlider.width = "240px";
+    moveSpeedSlider.height = "24px";
+    moveSpeedSlider.color = "white";
+    moveSpeedSlider.background = "black";
+    moveSpeedSlider.minimum = .5;
+    moveSpeedSlider.maximum = 10;
+    moveSpeedSlider.value = this.moveSpeed;
+    moveSpeedSlider.paddingTopInPixels = 5;
+
+    // Text headers for the radio buttons
+    var locoModeRadio1Header = Control.AddHeader(locoModeRadio1, "View directed move", "230px", {isHorizontal: true, controlFirst: true});
+    locoModeRadio1Header.horizontalAlignment = StackPanel.HORIZONTAL_ALIGNMENT_LEFT;
+    locoModeRadio1Header.height = "30px";
+    locoModeRadio1Header.fontSize = "20px";
+    locoModeRadio1Header.color = "white";
+    locoModePanel.addControl(locoModeRadio1Header);
+
+    var locoModeRadio2Header = Control.AddHeader(locoModeRadio2, "Hand directed move", "230px", {isHorizontal: true, controlFirst: true});
+    locoModeRadio2Header.horizontalAlignment = StackPanel.HORIZONTAL_ALIGNMENT_LEFT;
+    locoModeRadio2Header.height = "30px";
+    locoModeRadio2Header.fontSize = "20px";
+    locoModeRadio2Header.color = "white";
+    locoModePanel.addControl(locoModeRadio2Header);
+
+    var locoModeRadio3Header = Control.AddHeader(locoModeRadio3, "Directed teleportation", "230px", {isHorizontal: true, controlFirst: true});
+    locoModeRadio3Header.horizontalAlignment = StackPanel.HORIZONTAL_ALIGNMENT_LEFT;
+    locoModeRadio3Header.height = "30px";
+    locoModeRadio3Header.fontSize = "20px";
+    locoModeRadio3Header.color = "white";
+    locoModePanel.addControl(locoModeRadio3Header);
+
+    var locoModeRadio4Header = Control.AddHeader(locoModeRadio4, "Visualized teleportation", "230px", {isHorizontal: true, controlFirst: true});
+    locoModeRadio4Header.horizontalAlignment = StackPanel.HORIZONTAL_ALIGNMENT_LEFT;
+    locoModeRadio4Header.height = "30px";
+    locoModeRadio4Header.fontSize = "20px";
+    locoModeRadio4Header.color = "white";
+    locoModePanel.addControl(locoModeRadio4Header);
+
+    var flyModeCheckboxHeader = Control.AddHeader(flyModeCheckbox, "Fly mode", "230px", {isHorizontal: true, controlFirst: true});
+    flyModeCheckboxHeader.horizontalAlignment = StackPanel.HORIZONTAL_ALIGNMENT_LEFT;
+    flyModeCheckboxHeader.height = "30px";
+    flyModeCheckboxHeader.fontSize = "20px";
+    flyModeCheckboxHeader.color = "white";
+    locoModePanel.addControl(flyModeCheckboxHeader);
+
+    var moveSpeedSliderHeader = Control.AddHeader(moveSpeedSlider, "Move speed: " + this.moveSpeed.toFixed(1).toString() + "m/s", "28px", {isHorizontal: false, controlFirst: false});
+    moveSpeedSliderHeader.horizontalAlignment = StackPanel.HORIZONTAL_ALIGNMENT_LEFT;
+    moveSpeedSliderHeader.verticalAlignment = StackPanel.VERTICAL_ALIGNMENT_TOP;
+    moveSpeedSliderHeader.paddingTopInPixels = 5;
+    moveSpeedSliderHeader.fontSize = "20px";
+    moveSpeedSliderHeader.color = "white";
+    var text = <TextBlock>moveSpeedSliderHeader.getChildByName("header");
+    text.paddingLeftInPixels = 15;
+    locoModePanel.addControl(moveSpeedSliderHeader);
+
+    var openedConfigPlane = false;
+    locoModeButton.onPointerDownObservable.add(() => {
+      if (openedConfigPlane) {
+        configPlane.isVisible = false;
+      } else {
+        configPlane.isVisible = true;
+      }
+      openedConfigPlane = !openedConfigPlane;
+    });
+
+    // Event handlers for the radio buttons
+    locoModeRadio1.onIsCheckedChangedObservable.add((state) => {
+      if (state) {
+        this.locomotionMode = 0;
+      }
+    });
+
+    locoModeRadio2.onIsCheckedChangedObservable.add((state) => {
+      if (state) {
+        this.locomotionMode = 1;
+      }
+    });
+
+    locoModeRadio3.onIsCheckedChangedObservable.add((state) => {
+      if (state) {
+        this.locomotionMode = 2;
+      }
+    });
+
+    locoModeRadio4.onIsCheckedChangedObservable.add((state) => {
+      if (state) {
+        this.locomotionMode = 3;
+      }
+    });
+
+    flyModeCheckbox.onIsCheckedChangedObservable.add((state) => {
+      if (state) {
+        this.flyMode = true;
+      } else {
+        this.flyMode = false;
+      }
+    });
 
     // Anlan 12122020
-    testButton.onPointerDownObservable.add(() => {
-      if(this.mapMode == true){
+    mapModeButton.onPointerDownObservable.add(() => {
+      if(this.mapMode == true) {
         // resume the original position
         this.world!.position.x = this.worldOriginalPosition.x;
         this.world!.position.y = this.worldOriginalPosition.y;
@@ -344,8 +581,7 @@ class Game {
         this.locomotionMode = this.originalLocomotionMode;
 
         this.mapMode = false;
-      }
-      else{
+      } else {
         // save the original position
         this.worldOriginalPosition.x = this.world!.position.x;
         this.worldOriginalPosition.y = this.world!.position.y;
@@ -354,7 +590,7 @@ class Game {
         this.cameraOriginalPosition.y = this.xrCamera!.position.y;
         this.cameraOriginalPosition.z = this.xrCamera!.position.z;
         this.world!.position.y -= 20;
-        
+
         // save original fly and locomotion mode, set fly mode as true and set locomotion mode as visualizedtele
         this.originalLocomotionMode = this.locomotionMode;
         this.originalFlyMode = this.flyMode;
@@ -363,40 +599,29 @@ class Game {
 
         this.mapMode = true;
       }
-  });
+    });
+
+    moveSpeedSlider.onValueChangedObservable.add((value) => {
+      var text = <TextBlock>moveSpeedSliderHeader.getChildByName("header");
+      this.moveSpeed = value;
+      text.text = "Move speed: " + this.moveSpeed.toFixed(1).toString() + "m/s", "230px";
+    });
 
     // Create a colorpicker
-
     this.picker = new ColorPicker();
     this.pickerPlane = MeshBuilder.CreatePlane(
       "pickerPlane", { width: .3, height: .3 }, this.scene);
     var pickerTexture = AdvancedDynamicTexture.CreateForMesh(this.pickerPlane, 500, 500);
     pickerTexture.addControl(this.picker);
     var pickerPlaneTransform = new TransformNode("pickerPlaneTransform", this.scene);
-    pickerPlaneTransform.position = new Vector3(0, -.1, -.2);
-    pickerPlaneTransform.rotation = new Vector3(0, Math.PI * .5, 0);
+    pickerPlaneTransform.position = new Vector3(-.13, -.02, 0);
+    pickerPlaneTransform.parent = controllerGuiTransform;
     this.pickerPlane.parent = pickerPlaneTransform;
     this.pickerPlane.isPickable = false;
     this.pickerPlane.visibility = 0;
+
     this.highlight.addExcludedMesh(this.pickerPlane);
-
-    // Create a panel to automatically layout GUI controls
-    // See: https://doc.babylonjs.com/divingDeeper/gui/gui3D
-
-    //var panel = new StackPanel3D();
-    //var panel = new PlanePanel();
-    var panel = new CylinderPanel();
-    //var panel = new SpherePanel();
-    //var panel = new ScatterPanel();
-    guiManager.addControl(panel);
-
-    var panelTransform = new TransformNode("panelTranform", this.scene);
-    panelTransform.position = new Vector3(0, -.1, -.3);
-    panelTransform.rotation = new Vector3(0, Math.PI * .5, 0);
-
-    panel.linkToTransformNode(panelTransform);
-    panel.blockLayout = true;
-    panel.addControl(testButton);
+    this.highlight.addExcludedMesh(configPlane);
 
     // Attach the laser pointer to the right controller when it is connected
     xrHelper.input.onControllerAddedObservable.add((inputSource) => {
@@ -404,16 +629,14 @@ class Game {
         this.rightController = inputSource;
       } else {
         this.leftController = inputSource;
-        panelTransform.parent = this.leftController.pointer!;
-        pickerPlaneTransform.parent = this.leftController.pointer!;
+        controllerGuiTransform.parent = this.leftController.pointer!;
       }
     });
 
     // Don't forget to deparent objects from the controllers or they will be destroyed!
     xrHelper.input.onControllerRemovedObservable.add((inputSource) => {
       if (inputSource.uniqueId.endsWith("left")) {
-        panelTransform.parent = null;
-        pickerPlaneTransform.parent = null;
+        controllerGuiTransform.parent = null;
       }
     });
   }
@@ -480,15 +703,13 @@ class Game {
 
   // Process event handlers for controller input
   private processControllerInput() {
-    this.onRightA(this.rightController?.motionController?.getComponent("a-button"));
-    this.onRightB(this.rightController?.motionController?.getComponent("b-button"));
     this.onRightThumbstick(this.rightController?.motionController?.getComponent("xr-standard-thumbstick"));
     this.onLeftThumbStick(this.leftController?.motionController?.getComponent("xr-standard-thumbstick"));
   }
 
   private onRightThumbstick(component?: WebXRControllerComponent) {
     if (component?.changes.axes) {
-      if(this.mapMode == false){
+      if (this.mapMode == false) {
         // View-directed steering
         if (this.locomotionMode == LocomotionMode.viewDirected) {
           // Get the current camera direction
@@ -500,7 +721,7 @@ class Game {
           }
 
           // Use delta time to calculate the move distance based on speed of 3 m/sec
-          var moveDistance = -component.axes.y * (this.engine.getDeltaTime() / 1000) * 3;
+        var moveDistance = -component.axes.y * (this.engine.getDeltaTime() / 1000) * this.moveSpeed;
 
           // Translate the camera forward
           this.xrCamera!.position.addInPlace(directionVector.scale(moveDistance));
@@ -528,7 +749,7 @@ class Game {
           }
 
           // Use delta time to calculate the move distance based on speed of 3 m/sec
-          var moveDistance = -component.axes.y * (this.engine.getDeltaTime() / 1000) * 3;
+        var moveDistance = -component.axes.y * (this.engine.getDeltaTime() / 1000) * this.moveSpeed;
 
           // Translate the camera forward
           this.xrCamera!.position.addInPlace(directionVector.scale(moveDistance));
@@ -626,7 +847,7 @@ class Game {
           }
         }
       }
-      else{
+      else {
         // Anlan 12122020
         // Visualized Teleportation
         // If the thumbstick is moved forward
@@ -673,40 +894,15 @@ class Game {
             this.world!.position.x = this.worldOriginalPosition.x;
             this.world!.position.y = this.worldOriginalPosition.y;
             this.world!.position.z = this.worldOriginalPosition.z;
-            
+
             // resume original fly mode and locomotion mode
             this.flyMode = this.originalFlyMode;
             this.locomotionMode = this.originalLocomotionMode;
-            
+
             // exit map mode
             this.mapMode = false;
           }
         }
-      }
-    }
-  }
-
-  // Toggle for locomotion mode
-  private onRightA(component?: WebXRControllerComponent) {
-    if (component?.changes.pressed?.current) {
-      // Anlan 12122020
-      if(this.mapMode == false){
-        if (this.locomotionMode == LocomotionMode.visualizedTele) {
-          this.locomotionMode = 0;
-        } else {
-          this.locomotionMode += 1;
-        }
-      }
-    }
-  }
-
-  // Toggle for fly mode
-  private onRightB(component?: WebXRControllerComponent) {
-    if (component?.changes.pressed?.current) {
-      if (this.flyMode == true) {
-        this.flyMode = false;
-      } else {
-        this.flyMode = true;
       }
     }
   }
@@ -733,9 +929,7 @@ class Game {
       }
     }
   }
-
 }
-
 /******* End of the Game class ******/
 
 // start the game
