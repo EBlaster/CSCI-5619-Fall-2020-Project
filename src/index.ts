@@ -928,6 +928,20 @@ class Game {
 
         // Translate the camera forward
         this.xrCamera!.position.addInPlace(directionVector.scale(moveDistance));
+
+        // Snap turn
+        var turnAngle = 20;
+        if (component.axes.x > .8 && !this.turned) {
+          this.turned = true;
+          var cameraRotation = Quaternion.FromEulerAngles(0, turnAngle * Math.PI / 180, 0);
+          this.xrCamera!.rotationQuaternion.multiplyInPlace(cameraRotation);
+        } else if (component.axes.x < -.8 && !this.turned) {
+          this.turned = true;
+          var cameraRotation = Quaternion.FromEulerAngles(0, -turnAngle * Math.PI / 180, 0);
+          this.xrCamera!.rotationQuaternion.multiplyInPlace(cameraRotation);
+        } else if ((component.axes.x <= .5 && component.axes.x >= -.5) && this.turned) {
+          this.turned = false;
+        }
       }
     }
   }
