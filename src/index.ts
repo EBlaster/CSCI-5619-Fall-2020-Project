@@ -318,7 +318,8 @@ class Game {
     nightModeButton.scaling = new Vector3(.1, .05, .1);
 
     var nightModeButtonTransform = new TransformNode("nightModeButtonTransform", this.scene);
-    nightModeButtonTransform.position = new Vector3(0, 0, 0);
+    nightModeButtonTransform.position = new Vector3(0, .06, .005);
+    nightModeButtonTransform.rotation = new Vector3(10 * Math.PI / 180, 0, 0);
     nightModeButtonTransform.parent = controllerGuiTransform;
     nightModeButton.linkToTransformNode(nightModeButtonTransform);
 
@@ -379,7 +380,6 @@ class Game {
     mapModeButton.scaling = new Vector3(.1, .05, .1);
 
     var mapModeButtonTransform = new TransformNode("mapModeButtonTransform", this.scene);
-    mapModeButtonTransform.position = new Vector3(0, -.12, 0);
     mapModeButtonTransform.parent = controllerGuiTransform;
     mapModeButton.linkToTransformNode(mapModeButtonTransform);
 
@@ -398,7 +398,8 @@ class Game {
     locoModeButton.scaling = new Vector3(.1, .05, .1);
 
     var locoModeButtonTransform = new TransformNode("locoModeButtonTransform", this.scene);
-    locoModeButtonTransform.position = new Vector3(0, -.06, 0);
+    locoModeButtonTransform.position = new Vector3(0, -.06, .005);
+    locoModeButtonTransform.rotation = new Vector3(-10 * Math.PI / 180, 0, 0);
     locoModeButtonTransform.parent = controllerGuiTransform;
     locoModeButton.linkToTransformNode(locoModeButtonTransform);
 
@@ -613,8 +614,9 @@ class Game {
       "pickerPlane", { width: .3, height: .3 }, this.scene);
     var pickerTexture = AdvancedDynamicTexture.CreateForMesh(this.pickerPlane, 500, 500);
     pickerTexture.addControl(this.picker);
+
     var pickerPlaneTransform = new TransformNode("pickerPlaneTransform", this.scene);
-    pickerPlaneTransform.position = new Vector3(-.13, -.02, 0);
+    pickerPlaneTransform.position = new Vector3(-.13, 0, 0);
     pickerPlaneTransform.parent = controllerGuiTransform;
     this.pickerPlane.parent = pickerPlaneTransform;
     this.pickerPlane.isPickable = false;
