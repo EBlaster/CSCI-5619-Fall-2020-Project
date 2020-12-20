@@ -26,7 +26,7 @@ import { Mesh } from "@babylonjs/core/Meshes/Mesh";
 import { InstancedMesh } from "@babylonjs/core/Meshes/instancedMesh";
 import { Ray } from "@babylonjs/core/Culling/ray";
 import { Axis } from "@babylonjs/core/Maths/math.axis";
-import { Quaternion } from "@babylonjs/core/Maths/math.vector";
+import { Quaternion, Vector2 } from "@babylonjs/core/Maths/math.vector";
 import { AdvancedTimer, AssetsManager } from "@babylonjs/core/Misc";
 import { Animation } from "@babylonjs/core/Animations/animation";
 import { HighlightLayer } from "@babylonjs/core";
@@ -43,6 +43,7 @@ import { TextBlock } from "@babylonjs/gui/2D/controls/textBlock";
 import { InputText } from "@babylonjs/gui/2D/controls/inputText";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import { AdvancedDynamicTexture } from "@babylonjs/gui/2D/advancedDynamicTexture";
+import { DynamicTexture } from "@babylonjs/core/Materials/Textures/dynamicTexture"
 
 
 // Side effects
@@ -460,7 +461,10 @@ class Game {
         notepadPlane.isPickable = true;
         configPlane.isVisible = false;
         configPlane.isPickable = false;
+        boardPlane.isVisible = false;
+        boardPlane.isPickable = false;
         openedConfigPlane = false;
+        openedBoardPlane = false;
       }
       openedNotepadPlane = !openedNotepadPlane;
     });
@@ -494,6 +498,95 @@ class Game {
         notepadInput.text = '';;
       }
     })
+
+    // Create a drawing board button
+    var boardButton = new Button3D("boardButton");
+    guiManager.addControl(boardButton);
+    boardButton.scaling = new Vector3(.1, .05, .1);
+
+    var boardButtonTransform = new TransformNode("boardButtonTransform", this.scene);
+    boardButtonTransform.position = new Vector3(.12, -.06, .005);
+    boardButtonTransform.rotation = new Vector3(-10 * Math.PI / 180, 0, 0);
+    boardButtonTransform.parent = this.controllerGuiTransform;
+    boardButton.linkToTransformNode(boardButtonTransform);
+
+    var boardButtonText = new TextBlock();
+    boardButtonText.text = "Drawing Board";
+    boardButtonText.color = "white";
+    boardButtonText.fontSize = 12;
+    boardButtonText.scaleX = 2;
+    boardButtonText.scaleY = 4;
+    boardButtonText.rotation = Math.PI;
+    boardButton.content = boardButtonText;
+
+    var boardPlane = MeshBuilder.CreatePlane("boardPlane",
+      { width: 0.5, height: 0.3 }, this.scene);
+    var boardPlaneTransform = new TransformNode("boardPlaneTransform");
+    boardPlaneTransform.position = new Vector3(0, -.25, 0);
+    boardPlaneTransform.rotation = new Vector3(150 * Math.PI / 180, Math.PI, 0);
+    boardPlane.parent = boardPlaneTransform;
+    boardPlaneTransform.parent = this.controllerGuiTransform;
+    boardPlane.isVisible = false;
+    boardPlane.isPickable = false;
+
+    var boardTexture = AdvancedDynamicTexture.CreateForMesh(boardPlane, 500, 300);
+
+    var boardPanel = new StackPanel("boardPanel");
+    boardPanel.widthInPixels = 500;
+    boardPanel.heightInPixels = 300;
+    boardTexture.addControl(boardPanel);
+
+    var dynamicTexture = new DynamicTexture(
+      "dynamicTexture", { width: 500, height: 300 }, this.scene, false);
+    var boardMaterial = new StandardMaterial("boardMaterial", this.scene);
+    boardMaterial.diffuseTexture = dynamicTexture;
+    boardMaterial.specularColor = new Color3(0, 0, 0);
+    boardPlane.material = boardMaterial;
+    var context = dynamicTexture.getContext();
+    context.fillStyle = "white";
+    context.strokeStyle = 'black';
+    context.rect(0, 0, 500, 300);
+    context.fill();
+    context.lineWidth = 1;
+    dynamicTexture.update();
+
+    var draw = false;
+    boardPanel.onPointerDownObservable.add((pos) => {
+      context.beginPath();
+      context.moveTo(pos.x, pos.y);
+      draw = true;
+    });
+    boardPanel.onPointerUpObservable.add(() => {
+      draw = false;
+    })
+    boardPanel.onPointerOutObservable.add(() => {
+      draw = false;
+    })
+    boardPanel.onPointerMoveObservable.add((pos, state) => {
+      if (draw) {
+        context.lineTo(pos.x, pos.y);
+        context.stroke();
+        dynamicTexture.update();
+      }
+    });
+
+    var openedBoardPlane = false;
+    boardButton.onPointerDownObservable.add(() => {
+      if (openedBoardPlane) {
+        boardPlane.isVisible = false;
+        boardPlane.isPickable = false;
+      } else {
+        boardPlane.isVisible = true;
+        boardPlane.isPickable = true;
+        configPlane.isVisible = false;
+        configPlane.isPickable = false;
+        notepadPlane.isVisible = false;
+        notepadPlane.isPickable = false;
+        openedConfigPlane = false;
+        openedNotepadPlane = false;
+      }
+      openedBoardPlane = !openedBoardPlane;
+    });
 
     // Create a locomotion mode button
     var locoModeButton = new Button3D("locoModeButton");
@@ -644,7 +737,10 @@ class Game {
         configPlane.isPickable = true;
         notepadPlane.isVisible = false;
         notepadPlane.isPickable = false;
+        boardPlane.isVisible = false;
+        boardPlane.isPickable = false;
         openedNotepadPlane = false;
+        openedBoardPlane = false;
       }
       openedConfigPlane = !openedConfigPlane;
     });
@@ -761,6 +857,7 @@ class Game {
     this.highlight.addExcludedMesh(this.pickerPlane);
     this.highlight.addExcludedMesh(configPlane);
     this.highlight.addExcludedMesh(notepadPlane);
+    this.highlight.addExcludedMesh(boardPlane);
 
     // Attach the laser pointer to the right controller when it is connected
     xrHelper.input.onControllerAddedObservable.add((inputSource) => {
@@ -882,7 +979,7 @@ class Game {
   // but was implemented in a easy method due to time constrains.
   private onLeftControllerMove(camera: WebXRCamera, controller?: AbstractMesh) {
     if (camera != null && controller != null) {
-      if (camera.position.y - controller.position.y > .45 ||
+      if (camera.position.y - controller.position.y > .6 ||
         camera.position.y - controller.position.y < -.3 ||
         camera.position.subtract(controller.position).length() > .7) {
         this.pickerPlane!.visibility = 0;
