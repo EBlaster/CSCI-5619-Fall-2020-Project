@@ -50,6 +50,7 @@ import { DynamicTexture } from "@babylonjs/core/Materials/Textures/dynamicTextur
 import "@babylonjs/loaders/glTF/2.0/glTFLoader"
 import "@babylonjs/core/Helpers/sceneHelpers";
 import "@babylonjs/inspector";
+import { prePassDeclaration } from "@babylonjs/core/Shaders/ShadersInclude/prePassDeclaration";
 
 enum LocomotionMode {
   viewDirected,
@@ -71,6 +72,7 @@ class Game {
   private locomotionMode: LocomotionMode;
   private flyMode: boolean;
   private turned: boolean;
+  private holding: Mesh | null;
 
   private groundMeshes: Array<AbstractMesh>;
   private teleportPoint: Vector3 | null;
@@ -89,6 +91,11 @@ class Game {
   private selectedInstancedMesh: InstancedMesh | null;
   private selectedMaterial: StandardMaterial | null;
   private controllerGuiTransform: TransformNode | null;
+
+  private sampleBox: Mesh | null;
+  private sampleSphere: Mesh | null;
+  private sampleCylinder: Mesh | null;
+  private savedMesh: Mesh[] | null;
 
   private configurableMesh: Mesh | null;
   private moveSpeed: number;
@@ -119,6 +126,7 @@ class Game {
     this.locomotionMode = LocomotionMode.viewDirected;
     this.flyMode = false;
     this.turned = false;
+    this.holding = null;
 
     this.groundMeshes = [];
     this.teleportPoint = null;
@@ -137,6 +145,11 @@ class Game {
     this.selectedInstancedMesh = null;
     this.selectedMaterial = null;
     this.controllerGuiTransform = null;
+
+    this.sampleBox = null;
+    this.sampleSphere = null;
+    this.sampleCylinder = null;
+    this.savedMesh = [];
 
     this.configurableMesh = null;
     this.moveSpeed = 3;
@@ -313,7 +326,7 @@ class Game {
     var guiManager = new GUI3DManager(this.scene);
 
     this.controllerGuiTransform = new TransformNode("controllerGuiTransform", this.scene);
-    this.controllerGuiTransform.position = new Vector3(-.1, -.1, -.3);
+    this.controllerGuiTransform.position = new Vector3(-.1, -.1, -.2);
     this.controllerGuiTransform.rotation = new Vector3(Math.PI * .3, Math.PI * .5, 0);
 
     // Create a night mode button
@@ -459,10 +472,19 @@ class Game {
       } else {
         notepadPlane.isVisible = true;
         notepadPlane.isPickable = true;
+        meshPlane.isVisible = false;
+        meshPlane.isPickable = false;
+        this.sampleBox!.isVisible = false;
+        this.sampleBox!.isPickable = false;
+        this.sampleSphere!.isVisible = false;
+        this.sampleSphere!.isPickable = false;
+        this.sampleCylinder!.isVisible = false;
+        this.sampleCylinder!.isPickable = false;
         configPlane.isVisible = false;
         configPlane.isPickable = false;
         boardPlane.isVisible = false;
         boardPlane.isPickable = false;
+        openedMeshPlane = false;
         openedConfigPlane = false;
         openedBoardPlane = false;
       }
@@ -578,15 +600,112 @@ class Game {
       } else {
         boardPlane.isVisible = true;
         boardPlane.isPickable = true;
+        meshPlane.isVisible = false;
+        meshPlane.isPickable = false;
+        this.sampleBox!.isVisible = false;
+        this.sampleBox!.isPickable = false;
+        this.sampleSphere!.isVisible = false;
+        this.sampleSphere!.isPickable = false;
+        this.sampleCylinder!.isVisible = false;
+        this.sampleCylinder!.isPickable = false;
         configPlane.isVisible = false;
         configPlane.isPickable = false;
         notepadPlane.isVisible = false;
         notepadPlane.isPickable = false;
+        openedMeshPlane = false;
         openedConfigPlane = false;
         openedNotepadPlane = false;
       }
       openedBoardPlane = !openedBoardPlane;
     });
+
+    // Create a mesh builder button
+    var meshButton = new Button3D("meshButton");
+    guiManager.addControl(meshButton);
+    meshButton.scaling = new Vector3(.1, .05, .1);
+
+    var meshButtonTransform = new TransformNode("meshButtonTransform", this.scene);
+    meshButtonTransform.position = new Vector3(.12, .06, .005);
+    meshButtonTransform.rotation = new Vector3(10 * Math.PI / 180, 0, 0);
+    meshButtonTransform.parent = this.controllerGuiTransform;
+    meshButton.linkToTransformNode(meshButtonTransform);
+
+    var meshButtonText = new TextBlock();
+    meshButtonText.text = "Mesh Builder";
+    meshButtonText.color = "white";
+    meshButtonText.fontSize = 12;
+    meshButtonText.scaleX = 2;
+    meshButtonText.scaleY = 4;
+    meshButtonText.rotation = Math.PI;
+    meshButton.content = meshButtonText;
+
+    var openedMeshPlane = false;
+    meshButton.onPointerDownObservable.add(() => {
+      if (openedMeshPlane) {
+        meshPlane.isVisible = false;
+        meshPlane.isPickable = false;
+        this.sampleBox!.isVisible = false;
+        this.sampleBox!.isPickable = false;
+        this.sampleSphere!.isVisible = false;
+        this.sampleSphere!.isPickable = false;
+        this.sampleCylinder!.isVisible = false;
+        this.sampleCylinder!.isPickable = false;
+      } else {
+        meshPlane.isVisible = true;
+        meshPlane.isPickable = true;
+        this.sampleBox!.isVisible = true;
+        this.sampleBox!.isPickable = true;
+        this.sampleSphere!.isVisible = true;
+        this.sampleSphere!.isPickable = true;
+        this.sampleCylinder!.isVisible = true;
+        this.sampleCylinder!.isPickable = true;
+        boardPlane.isVisible = false;
+        boardPlane.isPickable = false;
+        configPlane.isVisible = false;
+        configPlane.isPickable = false;
+        notepadPlane.isVisible = false;
+        notepadPlane.isPickable = false;
+        openedBoardPlane = false;
+        openedConfigPlane = false;
+        openedNotepadPlane = false;
+      }
+      openedMeshPlane = !openedMeshPlane;
+    });
+
+    var meshPlane = MeshBuilder.CreatePlane("meshPlane",
+    { width: 0.5, height: 0.3 }, this.scene);
+    var meshPlaneTransform = new TransformNode("meshPlaneTransform");
+    meshPlaneTransform.position = new Vector3(0, -.25, 0);
+    meshPlaneTransform.rotation = new Vector3(150 * Math.PI / 180, Math.PI, 0);
+    meshPlane.parent = meshPlaneTransform;
+    meshPlaneTransform.parent = this.controllerGuiTransform;
+    meshPlane.isVisible = false;
+    meshPlane.isPickable = false;
+
+    var meshTexture = AdvancedDynamicTexture.CreateForMesh(meshPlane, 500, 300);
+    meshTexture.background = (new Color4(.5, .5, .5, .75)).toHexString();
+
+    this.sampleBox = MeshBuilder.CreateBox("this.sampleBox", { size: .09 }, this.scene);
+    this.sampleBox.setParent(meshPlaneTransform);
+    this.sampleBox.position = new Vector3(.12, 0, -.05);
+    this.sampleBox.rotation.z = 0;
+    this.sampleBox.isVisible = false;
+    this.sampleBox.isPickable = false;
+
+    this.sampleSphere = MeshBuilder.CreateSphere("this.sampleSphere", { diameter: .1 }, this.scene);
+    this.sampleSphere.setParent(meshPlaneTransform);
+    this.sampleSphere.position = new Vector3(0, 0, -.05);
+    this.sampleSphere.isVisible = false;
+    this.sampleSphere.isPickable = false;
+
+    this.sampleCylinder = MeshBuilder.CreateCylinder("this.sampleCylinder",
+      { height: .1, diameterTop: 0, diameterBottom: .1 }, this.scene);
+    this.sampleCylinder.setParent(meshPlaneTransform);
+    this.sampleCylinder.position = new Vector3(-.115, 0, -.05);
+    this.sampleCylinder.rotation.z = 0;
+    this.sampleCylinder.isVisible = false;
+    this.sampleCylinder.isPickable = false;
+
 
     // Create a locomotion mode button
     var locoModeButton = new Button3D("locoModeButton");
@@ -735,10 +854,19 @@ class Game {
       } else {
         configPlane.isVisible = true;
         configPlane.isPickable = true;
+        meshPlane.isVisible = false;
+        meshPlane.isPickable = false;
+        this.sampleBox!.isVisible = false;
+        this.sampleBox!.isPickable = false;
+        this.sampleSphere!.isVisible = false;
+        this.sampleSphere!.isPickable = false;
+        this.sampleCylinder!.isVisible = false;
+        this.sampleCylinder!.isPickable = false;
         notepadPlane.isVisible = false;
         notepadPlane.isPickable = false;
         boardPlane.isVisible = false;
         boardPlane.isPickable = false;
+        openedMeshPlane = false;
         openedNotepadPlane = false;
         openedBoardPlane = false;
       }
@@ -858,6 +986,7 @@ class Game {
     this.highlight.addExcludedMesh(configPlane);
     this.highlight.addExcludedMesh(notepadPlane);
     this.highlight.addExcludedMesh(boardPlane);
+    this.highlight.addExcludedMesh(meshPlane);
 
     // Attach the laser pointer to the right controller when it is connected
     xrHelper.input.onControllerAddedObservable.add((inputSource) => {
@@ -884,8 +1013,7 @@ class Game {
         if (pointerInfo.pickInfo?.hit) {
           console.log("selected mesh: " + pointerInfo.pickInfo.pickedMesh?.name);
           if (pointerInfo.pickInfo.pickedMesh?.name.includes("picker")) {
-          } else if ((pointerInfo.pickInfo.pickedMesh?.name.startsWith("sptp") ||
-            (pointerInfo.pickInfo.pickedMesh?.name.startsWith("new"))) &&
+          } else if (pointerInfo.pickInfo.pickedMesh?.name.startsWith("sptp") &&
             !(pointerInfo.pickInfo.pickedMesh?.name.includes("concrete") ||
               pointerInfo.pickInfo.pickedMesh?.name.includes("segment") ||
               pointerInfo.pickInfo.pickedMesh?.name.includes("grass"))) {
@@ -903,7 +1031,7 @@ class Game {
               console.log("instanced. material: " + this.selectedMaterial!.emissiveColor);
               this.highlight.addMesh(this.selectedInstancedMesh.sourceMesh, Color3.White());
               this.picker!.value = this.selectedMaterial.emissiveColor;
-              this.picker!.onValueChangedObservable.add(function(color) {
+              this.picker!.onValueChangedObservable.add(function (color) {
                 that.selectedMaterial!.emissiveColor.copyFrom(color);
                 that.selectedInstancedMesh!.sourceMesh.material = that.selectedMaterial;
               });
@@ -914,11 +1042,34 @@ class Game {
               console.log("mesh. material: " + this.selectedMaterial!.emissiveColor);
               this.highlight.addMesh(this.selectedMesh, Color3.White());
               this.picker!.value = this.selectedMaterial.emissiveColor;
-              this.picker!.onValueChangedObservable.add(function(color) {
+              this.picker!.onValueChangedObservable.add(function (color) {
                 that.selectedMaterial!.emissiveColor.copyFrom(color);
                 that.selectedMesh!.material = that.selectedMaterial;
               });
             }
+          } else if (pointerInfo.pickInfo.pickedMesh?.name.startsWith("new")) {
+            this.selectedInstancedMesh = null;
+            this.selectedMesh = null;
+            this.selectedMaterial = null;
+            this.highlight.removeAllMeshes();
+            this.pickerPlane!.visibility = 1;
+            this.pickerPlane!.isPickable = true;
+            this.picker!.onValueChangedObservable.clear();
+            this.selectedMesh = <Mesh>pointerInfo.pickInfo.pickedMesh;
+            if (!this.selectedMesh.material) {
+              this.selectedMaterial = new StandardMaterial("newMaterial", this.scene);
+              this.selectedMesh.material = this.selectedMaterial;
+            } else {
+              this.selectedMaterial = <StandardMaterial>this.selectedMesh.material!.
+                clone("selectedMaterial");
+            }
+            console.log("mesh. material: " + this.selectedMaterial!.diffuseColor);
+            this.highlight.addMesh(this.selectedMesh, Color3.White());
+            this.picker!.value = this.selectedMaterial.diffuseColor;
+            this.picker!.onValueChangedObservable.add(function (color) {
+              that.selectedMaterial!.diffuseColor.copyFrom(color);
+              that.selectedMesh!.material = that.selectedMaterial;
+            });
           } else {
             this.selectedInstancedMesh = null;
             this.selectedMesh = null;
@@ -956,6 +1107,48 @@ class Game {
       getComponent("xr-standard-thumbstick"));
     this.onLeftSqueeze(this.leftController?.motionController?.
       getComponent("xr-standard-squeeze"));
+    this.onRightSqueeze(this.rightController?.motionController?.
+      getComponent("xr-standard-thumbstick"));
+  }
+
+  // Grab an object when grip
+  private onRightSqueeze(component?: WebXRControllerComponent) {
+    if (component?.changes.pressed) {
+      if (component.pressed && !this.holding) {
+        if (this.rightController!.grip!.intersectsMesh(<AbstractMesh>this.sampleBox, true)) {
+          var newBox = MeshBuilder.CreateBox("newBox", { size: .3 }, this.scene);
+          newBox.rotation = this.sampleBox!.rotation.clone();
+          newBox.parent = this.rightController!.grip!;
+          this.holding = newBox;
+        } else if (this.rightController!.grip!.intersectsMesh
+          (<AbstractMesh>this.sampleSphere, true)) {
+          var newSphere = MeshBuilder.CreateSphere("newSphere", { diameter: .3 }, this.scene);
+          newSphere.parent = this.rightController!.grip!;
+          this.holding = newSphere;
+        } else if (this.rightController!.grip!.intersectsMesh
+          (<AbstractMesh>this.sampleCylinder, true)) {
+          var newCylinder = MeshBuilder.CreateCylinder("newCylinder",
+            { height: .3, diameterTop: 0, diameterBottom: .3 }, this.scene);
+          newCylinder.rotation = this.sampleCylinder!.rotation.clone();
+          newCylinder.rotation.z += Math.PI / 2;
+          newCylinder.parent = this.rightController!.grip!;
+          this.holding = newCylinder;
+        } else if (this.savedMesh) {
+          for (var i = 0; i < this.savedMesh!.length && !this.holding; i++) {
+            if (this.rightController!.grip!.intersectsMesh(this.savedMesh![i], true)) {
+              this.holding = this.savedMesh![i];
+              this.holding.setParent(this.rightController!.grip!);
+            }
+          }
+        }
+      } else {
+        if(this.holding) {
+          this.holding.setParent(null);
+          this.savedMesh?.push(this.holding);
+          this.holding = null;
+        }
+      }
+    }
   }
 
   // Menu shows up when left squeeze button is hold
@@ -979,9 +1172,9 @@ class Game {
   // but was implemented in a easy method due to time constrains.
   private onLeftControllerMove(camera: WebXRCamera, controller?: AbstractMesh) {
     if (camera != null && controller != null) {
-      if (camera.position.y - controller.position.y > .6 ||
-        camera.position.y - controller.position.y < -.3 ||
-        camera.position.subtract(controller.position).length() > .7) {
+      if (camera.position.y - controller.position.y > .65 ||
+        camera.position.y - controller.position.y < -.5 ||
+        camera.position.subtract(controller.position).length() > .8) {
         this.pickerPlane!.visibility = 0;
         this.pickerPlane!.isPickable = false;
         this.controllerGuiTransform?.getChildMeshes().forEach((mesh) => {
@@ -1170,7 +1363,8 @@ class Game {
               getViewerPose(this.xrSessionManager!.baseReferenceSpace)?.transform.position;
             this.workspaceUser!.position = this.teleportPoint!.add
               (new Vector3(userPos?.x, .2, userPos?.z));
-            var userOri = this.xrSessionManager!.currentFrame?.getViewerPose(this.xrSessionManager!.baseReferenceSpace)?.transform.orientation;
+            var userOri = this.xrSessionManager!.currentFrame?.
+              getViewerPose(this.xrSessionManager!.baseReferenceSpace)?.transform.orientation;
             var userOriVec = new Quaternion(userOri?.x, userOri?.y, userOri?.z, userOri?.w).
               toEulerAngles();
             this.workspaceUser!.rotation = userOriVec.multiply(new Vector3(0, 1, 0));
@@ -1189,7 +1383,8 @@ class Game {
               - this.world!.position.x;
             this.xrCamera!.position.y = this.teleportPoint.y + this.xrCamera!.realWorldHeight
               + this.worldOriginalPosition.y - this.world!.position.y;
-            this.xrCamera!.position.z = this.teleportPoint.z + this.worldOriginalPosition.z - this.world!.position.z;
+            this.xrCamera!.position.z = this.teleportPoint.z +
+              this.worldOriginalPosition.z - this.world!.position.z;
             this.teleportPoint = null;
             var cameraRotation = Quaternion.FromEulerAngles
               (0, -this.rightController?.pointer.rotationQuaternion?.toEulerAngles().z!, 0);
