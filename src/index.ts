@@ -97,6 +97,21 @@ class Game {
   private sampleCylinder: Mesh | null;
   private savedMesh: Mesh[] | null;
 
+  private meshPlane: Mesh | null;
+  private configPlane: Mesh | null;
+  private boardPlane: Mesh | null;
+  private notepadPlane: Mesh | null;
+
+  private meshPlaneTransform: TransformNode | null;
+  private configPlaneTransform: TransformNode | null;
+  private boardPlaneTransform: TransformNode | null;
+  private notepadPlaneTransform: TransformNode | null;
+
+  private openedNotepadPlane: boolean;
+  private openedMeshPlane: boolean;
+  private openedConfigPlane: boolean;
+  private openedBoardPlane: boolean;
+
   private configurableMesh: Mesh | null;
   private moveSpeed: number;
 
@@ -150,6 +165,21 @@ class Game {
     this.sampleSphere = null;
     this.sampleCylinder = null;
     this.savedMesh = [];
+
+    this.meshPlane = null;
+    this.configPlane = null;
+    this.boardPlane = null;
+    this.notepadPlane = null;
+
+    this.meshPlaneTransform = null;
+    this.configPlaneTransform = null;
+    this.boardPlaneTransform = null;
+    this.notepadPlaneTransform = null;
+
+    this.openedNotepadPlane = false;
+    this.openedMeshPlane = false;
+    this.openedConfigPlane = false;
+    this.openedBoardPlane = false;
 
     this.configurableMesh = null;
     this.moveSpeed = 3;
@@ -428,17 +458,17 @@ class Game {
     notepadButtonText.rotation = Math.PI;
     notepadButton.content = notepadButtonText;
 
-    var notepadPlane = MeshBuilder.CreatePlane("notepadPlane",
+    this.notepadPlane = MeshBuilder.CreatePlane("notepadPlane",
       { width: 0.5, height: 0.3 }, this.scene);
-    var notepadPlaneTransform = new TransformNode("notepadPlaneTransform");
-    notepadPlaneTransform.position = new Vector3(0, -.25, 0);
-    notepadPlaneTransform.rotation = new Vector3(150 * Math.PI / 180, Math.PI, 0);
-    notepadPlane.parent = notepadPlaneTransform;
-    notepadPlaneTransform.parent = this.controllerGuiTransform;
-    notepadPlane.isVisible = false;
-    notepadPlane.isPickable = false;
+    this.notepadPlaneTransform = new TransformNode("notepadPlaneTransform");
+    this.notepadPlaneTransform.position = new Vector3(0, -.25, 0);
+    this.notepadPlaneTransform.rotation = new Vector3(150 * Math.PI / 180, Math.PI, 0);
+    this.notepadPlane.parent = this.notepadPlaneTransform;
+    this.notepadPlaneTransform.parent = this.controllerGuiTransform;
+    this.notepadPlane.isVisible = false;
+    this.notepadPlane.isPickable = false;
 
-    var notepadTexture = AdvancedDynamicTexture.CreateForMesh(notepadPlane, 500, 300);
+    var notepadTexture = AdvancedDynamicTexture.CreateForMesh(this.notepadPlane, 500, 300);
     notepadTexture.background = (new Color4(.5, .5, .5, .75)).toHexString();
 
     var notepadPanel = new StackPanel("notepadPanel");
@@ -464,31 +494,41 @@ class Game {
     notepadInput.verticalAlignment = InputText.VERTICAL_ALIGNMENT_BOTTOM;
     notepadPanel.addControl(notepadInput);
 
-    var openedNotepadPlane = false;
     notepadButton.onPointerDownObservable.add(() => {
-      if (openedNotepadPlane) {
-        notepadPlane.isVisible = false;
-        notepadPlane.isPickable = false;
+      if (this.openedNotepadPlane) {
+        this.notepadPlane!.isVisible = false;
+        this.notepadPlane!.isPickable = false;
+        if (this.notepadPlane!.parent == this.xrCamera) {
+          this.notepadPlane!.parent = this.notepadPlaneTransform;
+          this.notepadPlane!.position = new Vector3(0, 0, 0);
+          this.notepadPlane!.rotation = new Vector3(0, 0, 0);
+        }
       } else {
-        notepadPlane.isVisible = true;
-        notepadPlane.isPickable = true;
-        meshPlane.isVisible = false;
-        meshPlane.isPickable = false;
-        this.sampleBox!.isVisible = false;
-        this.sampleBox!.isPickable = false;
-        this.sampleSphere!.isVisible = false;
-        this.sampleSphere!.isPickable = false;
-        this.sampleCylinder!.isVisible = false;
-        this.sampleCylinder!.isPickable = false;
-        configPlane.isVisible = false;
-        configPlane.isPickable = false;
-        boardPlane.isVisible = false;
-        boardPlane.isPickable = false;
-        openedMeshPlane = false;
-        openedConfigPlane = false;
-        openedBoardPlane = false;
+        this.notepadPlane!.isVisible = true;
+        this.notepadPlane!.isPickable = true;
+        if (this.meshPlane!.parent != this.xrCamera) {
+          this.meshPlane!.isVisible = false;
+          this.meshPlane!.isPickable = false;
+          this.sampleBox!.isVisible = false;
+          this.sampleBox!.isPickable = false;
+          this.sampleSphere!.isVisible = false;
+          this.sampleSphere!.isPickable = false;
+          this.sampleCylinder!.isVisible = false;
+          this.sampleCylinder!.isPickable = false;
+          this.openedMeshPlane = false;
+        }
+        if (this.configPlane!.parent != this.xrCamera) {
+          this.configPlane!.isVisible = false;
+          this.configPlane!.isPickable = false;
+          this.openedConfigPlane = false;
+        }
+        if (this.boardPlane!.parent != this.xrCamera) {
+          this.boardPlane!.isVisible = false;
+          this.boardPlane!.isPickable = false;
+          this.openedBoardPlane = false;
+        }
       }
-      openedNotepadPlane = !openedNotepadPlane;
+      this.openedNotepadPlane = !this.openedNotepadPlane;
     });
 
     var keyboard = VirtualKeyboard.CreateDefaultLayout("keyboard");
@@ -517,7 +557,7 @@ class Game {
         message.verticalAlignment = StackPanel.VERTICAL_ALIGNMENT_BOTTOM;
         message.textHorizontalAlignment = TextBlock.HORIZONTAL_ALIGNMENT_LEFT;
         container.addControl(message);
-        notepadInput.text = '';;
+        notepadInput.text = '';
       }
     })
 
@@ -541,17 +581,17 @@ class Game {
     boardButtonText.rotation = Math.PI;
     boardButton.content = boardButtonText;
 
-    var boardPlane = MeshBuilder.CreatePlane("boardPlane",
+    this.boardPlane = MeshBuilder.CreatePlane("boardPlane",
       { width: 0.5, height: 0.3 }, this.scene);
-    var boardPlaneTransform = new TransformNode("boardPlaneTransform");
-    boardPlaneTransform.position = new Vector3(0, -.25, 0);
-    boardPlaneTransform.rotation = new Vector3(150 * Math.PI / 180, Math.PI, 0);
-    boardPlane.parent = boardPlaneTransform;
-    boardPlaneTransform.parent = this.controllerGuiTransform;
-    boardPlane.isVisible = false;
-    boardPlane.isPickable = false;
+    this.boardPlaneTransform = new TransformNode("boardPlaneTransform");
+    this.boardPlaneTransform.position = new Vector3(0, -.25, 0);
+    this.boardPlaneTransform.rotation = new Vector3(150 * Math.PI / 180, Math.PI, 0);
+    this.boardPlane.parent = this.boardPlaneTransform;
+    this.boardPlaneTransform.parent = this.controllerGuiTransform;
+    this.boardPlane.isVisible = false;
+    this.boardPlane.isPickable = false;
 
-    var boardTexture = AdvancedDynamicTexture.CreateForMesh(boardPlane, 500, 300);
+    var boardTexture = AdvancedDynamicTexture.CreateForMesh(this.boardPlane, 500, 300);
 
     var boardPanel = new StackPanel("boardPanel");
     boardPanel.widthInPixels = 500;
@@ -563,7 +603,7 @@ class Game {
     var boardMaterial = new StandardMaterial("boardMaterial", this.scene);
     boardMaterial.diffuseTexture = dynamicTexture;
     boardMaterial.specularColor = new Color3(0, 0, 0);
-    boardPlane.material = boardMaterial;
+    this.boardPlane.material = boardMaterial;
     var context = dynamicTexture.getContext();
     context.fillStyle = "white";
     context.strokeStyle = 'black';
@@ -592,31 +632,41 @@ class Game {
       }
     });
 
-    var openedBoardPlane = false;
     boardButton.onPointerDownObservable.add(() => {
-      if (openedBoardPlane) {
-        boardPlane.isVisible = false;
-        boardPlane.isPickable = false;
+      if (this.openedBoardPlane) {
+        this.boardPlane!.isVisible = false;
+        this.boardPlane!.isPickable = false;
+        if (this.boardPlane!.parent == this.xrCamera) {
+          this.boardPlane!.parent = this.boardPlaneTransform;
+          this.boardPlane!.position = new Vector3(0, 0, 0);
+          this.boardPlane!.rotation = new Vector3(0, 0, 0);
+        }
       } else {
-        boardPlane.isVisible = true;
-        boardPlane.isPickable = true;
-        meshPlane.isVisible = false;
-        meshPlane.isPickable = false;
-        this.sampleBox!.isVisible = false;
-        this.sampleBox!.isPickable = false;
-        this.sampleSphere!.isVisible = false;
-        this.sampleSphere!.isPickable = false;
-        this.sampleCylinder!.isVisible = false;
-        this.sampleCylinder!.isPickable = false;
-        configPlane.isVisible = false;
-        configPlane.isPickable = false;
-        notepadPlane.isVisible = false;
-        notepadPlane.isPickable = false;
-        openedMeshPlane = false;
-        openedConfigPlane = false;
-        openedNotepadPlane = false;
+        this.boardPlane!.isVisible = true;
+        this.boardPlane!.isPickable = true;
+        if (this.meshPlane!.parent != this.xrCamera) {
+          this.meshPlane!.isVisible = false;
+          this.meshPlane!.isPickable = false;
+          this.sampleBox!.isVisible = false;
+          this.sampleBox!.isPickable = false;
+          this.sampleSphere!.isVisible = false;
+          this.sampleSphere!.isPickable = false;
+          this.sampleCylinder!.isVisible = false;
+          this.sampleCylinder!.isPickable = false;
+          this.openedMeshPlane = false;
+        }
+        if (this.configPlane!.parent != this.xrCamera) {
+          this.configPlane!.isVisible = false;
+          this.configPlane!.isPickable = false;
+          this.openedConfigPlane = false;
+        }
+        if (this.notepadPlane!.parent != this.xrCamera) {
+          this.notepadPlane!.isVisible = false;
+          this.notepadPlane!.isPickable = false;
+          this.openedNotepadPlane = false;
+        }
       }
-      openedBoardPlane = !openedBoardPlane;
+      this.openedBoardPlane = !this.openedBoardPlane;
     });
 
     // Create a mesh builder button
@@ -639,68 +689,78 @@ class Game {
     meshButtonText.rotation = Math.PI;
     meshButton.content = meshButtonText;
 
-    var openedMeshPlane = false;
     meshButton.onPointerDownObservable.add(() => {
-      if (openedMeshPlane) {
-        meshPlane.isVisible = false;
-        meshPlane.isPickable = false;
+      if (this.openedMeshPlane) {
+        this.meshPlane!.isVisible = false;
+        this.meshPlane!.isPickable = false;
         this.sampleBox!.isVisible = false;
         this.sampleBox!.isPickable = false;
         this.sampleSphere!.isVisible = false;
         this.sampleSphere!.isPickable = false;
         this.sampleCylinder!.isVisible = false;
         this.sampleCylinder!.isPickable = false;
+        if (this.meshPlane!.parent == this.xrCamera) {
+          this.meshPlane!.parent = this.meshPlaneTransform;
+          this.meshPlane!.position = new Vector3(0, 0, 0);
+          this.meshPlane!.rotation = new Vector3(0, 0, 0);
+        }
       } else {
-        meshPlane.isVisible = true;
-        meshPlane.isPickable = true;
+        this.meshPlane!.isVisible = true;
+        this.meshPlane!.isPickable = true;
         this.sampleBox!.isVisible = true;
         this.sampleBox!.isPickable = true;
         this.sampleSphere!.isVisible = true;
         this.sampleSphere!.isPickable = true;
         this.sampleCylinder!.isVisible = true;
         this.sampleCylinder!.isPickable = true;
-        boardPlane.isVisible = false;
-        boardPlane.isPickable = false;
-        configPlane.isVisible = false;
-        configPlane.isPickable = false;
-        notepadPlane.isVisible = false;
-        notepadPlane.isPickable = false;
-        openedBoardPlane = false;
-        openedConfigPlane = false;
-        openedNotepadPlane = false;
+        if (this.configPlane!.parent != this.xrCamera) {
+          this.configPlane!.isVisible = false;
+          this.configPlane!.isPickable = false;
+          this.openedConfigPlane = false;
+        }
+        if (this.notepadPlane!.parent != this.xrCamera) {
+          this.notepadPlane!.isVisible = false;
+          this.notepadPlane!.isPickable = false;
+          this.openedNotepadPlane = false;
+        }
+        if (this.boardPlane!.parent != this.xrCamera) {
+          this.boardPlane!.isVisible = false;
+          this.boardPlane!.isPickable = false;
+          this.openedBoardPlane = false;
+        }
       }
-      openedMeshPlane = !openedMeshPlane;
+      this.openedMeshPlane = !this.openedMeshPlane;
     });
 
-    var meshPlane = MeshBuilder.CreatePlane("meshPlane",
+    this.meshPlane = MeshBuilder.CreatePlane("meshPlane",
     { width: 0.5, height: 0.3 }, this.scene);
-    var meshPlaneTransform = new TransformNode("meshPlaneTransform");
-    meshPlaneTransform.position = new Vector3(0, -.25, 0);
-    meshPlaneTransform.rotation = new Vector3(150 * Math.PI / 180, Math.PI, 0);
-    meshPlane.parent = meshPlaneTransform;
-    meshPlaneTransform.parent = this.controllerGuiTransform;
-    meshPlane.isVisible = false;
-    meshPlane.isPickable = false;
+    this.meshPlaneTransform = new TransformNode("meshPlaneTransform");
+    this.meshPlaneTransform.position = new Vector3(0, -.25, 0);
+    this.meshPlaneTransform.rotation = new Vector3(150 * Math.PI / 180, Math.PI, 0);
+    this.meshPlane.parent = this.meshPlaneTransform;
+    this.meshPlaneTransform.parent = this.controllerGuiTransform;
+    this.meshPlane.isVisible = false;
+    this.meshPlane.isPickable = false;
 
-    var meshTexture = AdvancedDynamicTexture.CreateForMesh(meshPlane, 500, 300);
+    var meshTexture = AdvancedDynamicTexture.CreateForMesh(this.meshPlane, 500, 300);
     meshTexture.background = (new Color4(.5, .5, .5, .75)).toHexString();
 
     this.sampleBox = MeshBuilder.CreateBox("this.sampleBox", { size: .09 }, this.scene);
-    this.sampleBox.setParent(meshPlaneTransform);
+    this.sampleBox.setParent(this.meshPlane);
     this.sampleBox.position = new Vector3(.12, 0, -.05);
     this.sampleBox.rotation.z = 0;
     this.sampleBox.isVisible = false;
     this.sampleBox.isPickable = false;
 
     this.sampleSphere = MeshBuilder.CreateSphere("this.sampleSphere", { diameter: .1 }, this.scene);
-    this.sampleSphere.setParent(meshPlaneTransform);
+    this.sampleSphere.setParent(this.meshPlane);
     this.sampleSphere.position = new Vector3(0, 0, -.05);
     this.sampleSphere.isVisible = false;
     this.sampleSphere.isPickable = false;
 
     this.sampleCylinder = MeshBuilder.CreateCylinder("this.sampleCylinder",
       { height: .1, diameterTop: 0, diameterBottom: .1 }, this.scene);
-    this.sampleCylinder.setParent(meshPlaneTransform);
+    this.sampleCylinder.setParent(this.meshPlane);
     this.sampleCylinder.position = new Vector3(-.115, 0, -.05);
     this.sampleCylinder.rotation.z = 0;
     this.sampleCylinder.isVisible = false;
@@ -727,17 +787,17 @@ class Game {
     locoModeButtonText.rotation = Math.PI;
     locoModeButton.content = locoModeButtonText;
 
-    var configPlane = MeshBuilder.CreatePlane("configPlane",
+    this.configPlane = MeshBuilder.CreatePlane("configPlane",
       { width: 0.26, height: 0.23 }, this.scene);
-    var configPlaneTransform = new TransformNode("configPlaneTransform");
-    configPlaneTransform.position = new Vector3(0, -.25, 0);
-    configPlaneTransform.rotation = new Vector3(150 * Math.PI / 180, Math.PI, 0);
-    configPlane.parent = configPlaneTransform;
-    configPlaneTransform.parent = this.controllerGuiTransform;
-    configPlane.isVisible = false;
-    configPlane.isPickable = false;
+    this.configPlaneTransform = new TransformNode("configPlaneTransform");
+    this.configPlaneTransform.position = new Vector3(0, -.25, 0);
+    this.configPlaneTransform.rotation = new Vector3(150 * Math.PI / 180, Math.PI, 0);
+    this.configPlane.parent = this.configPlaneTransform;
+    this.configPlaneTransform.parent = this.controllerGuiTransform;
+    this.configPlane.isVisible = false;
+    this.configPlane.isPickable = false;
 
-    var configTexture = AdvancedDynamicTexture.CreateForMesh(configPlane, 260, 230);
+    var configTexture = AdvancedDynamicTexture.CreateForMesh(this.configPlane, 260, 230);
     configTexture.background = (new Color4(.5, .5, .5, .75)).toHexString();
 
     // Create a stack panel for the radio buttons
@@ -846,31 +906,41 @@ class Game {
     text.paddingLeftInPixels = 15;
     locoModePanel.addControl(moveSpeedSliderHeader);
 
-    var openedConfigPlane = false;
     locoModeButton.onPointerDownObservable.add(() => {
-      if (openedConfigPlane) {
-        configPlane.isVisible = false;
-        configPlane.isPickable = false;
+      if (this.openedConfigPlane) {
+        this.configPlane!.isVisible = false;
+        this.configPlane!.isPickable = false;
+        if (this.configPlane!.parent == this.xrCamera) {
+          this.configPlane!.parent = this.configPlaneTransform;
+          this.configPlane!.position = new Vector3(0, 0, 0);
+          this.configPlane!.rotation = new Vector3(0, 0, 0);
+        }
       } else {
-        configPlane.isVisible = true;
-        configPlane.isPickable = true;
-        meshPlane.isVisible = false;
-        meshPlane.isPickable = false;
-        this.sampleBox!.isVisible = false;
-        this.sampleBox!.isPickable = false;
-        this.sampleSphere!.isVisible = false;
-        this.sampleSphere!.isPickable = false;
-        this.sampleCylinder!.isVisible = false;
-        this.sampleCylinder!.isPickable = false;
-        notepadPlane.isVisible = false;
-        notepadPlane.isPickable = false;
-        boardPlane.isVisible = false;
-        boardPlane.isPickable = false;
-        openedMeshPlane = false;
-        openedNotepadPlane = false;
-        openedBoardPlane = false;
+        this.configPlane!.isVisible = true;
+        this.configPlane!.isPickable = true;
+        if (this.meshPlane!.parent != this.xrCamera) {
+          this.meshPlane!.isVisible = false;
+          this.meshPlane!.isPickable = false;
+          this.sampleBox!.isVisible = false;
+          this.sampleBox!.isPickable = false;
+          this.sampleSphere!.isVisible = false;
+          this.sampleSphere!.isPickable = false;
+          this.sampleCylinder!.isVisible = false;
+          this.sampleCylinder!.isPickable = false;
+          this.openedMeshPlane = false;
+        }
+        if (this.notepadPlane!.parent != this.xrCamera) {
+          this.notepadPlane!.isVisible = false;
+          this.notepadPlane!.isPickable = false;
+          this.openedNotepadPlane = false;
+        }
+        if (this.boardPlane!.parent != this.xrCamera) {
+          this.boardPlane!.isVisible = false;
+          this.boardPlane!.isPickable = false;
+          this.openedBoardPlane = false;
+        }
       }
-      openedConfigPlane = !openedConfigPlane;
+      this.openedConfigPlane = !this.openedConfigPlane;
     });
 
     // Event handlers for the radio buttons
@@ -983,10 +1053,10 @@ class Game {
 
     // Exclude planes from highlight layer so they won't glow when intersect
     this.highlight.addExcludedMesh(this.pickerPlane);
-    this.highlight.addExcludedMesh(configPlane);
-    this.highlight.addExcludedMesh(notepadPlane);
-    this.highlight.addExcludedMesh(boardPlane);
-    this.highlight.addExcludedMesh(meshPlane);
+    this.highlight.addExcludedMesh(this.configPlane);
+    this.highlight.addExcludedMesh(this.notepadPlane);
+    this.highlight.addExcludedMesh(this.boardPlane);
+    this.highlight.addExcludedMesh(this.meshPlane);
 
     // Attach the laser pointer to the right controller when it is connected
     xrHelper.input.onControllerAddedObservable.add((inputSource) => {
@@ -1133,6 +1203,22 @@ class Game {
           newCylinder.rotation.z += Math.PI / 2;
           newCylinder.parent = this.rightController!.grip!;
           this.holding = newCylinder;
+        } else if (this.rightController!.grip!.intersectsMesh(<AbstractMesh>this.boardPlane) &&
+          this.openedBoardPlane) {
+          this.boardPlane!.setParent(this.rightController!.grip!);
+          this.holding = this.boardPlane!;
+        } else if (this.rightController!.grip!.intersectsMesh(<AbstractMesh>this.meshPlane)
+          && this.openedMeshPlane) {
+          this.meshPlane!.setParent(this.rightController!.grip!);
+          this.holding = this.meshPlane!;
+        } else if (this.rightController!.grip!.intersectsMesh(<AbstractMesh>this.configPlane)
+          && this.openedConfigPlane) {
+          this.configPlane!.setParent(this.rightController!.grip!);
+          this.holding = this.configPlane!;
+        } else if (this.rightController!.grip!.intersectsMesh(<AbstractMesh>this.notepadPlane)
+          && this.openedNotepadPlane) {
+          this.notepadPlane!.setParent(this.rightController!.grip!);
+          this.holding = this.notepadPlane!;
         } else if (this.savedMesh) {
           for (var i = 0; i < this.savedMesh!.length && !this.holding; i++) {
             if (this.rightController!.grip!.intersectsMesh(this.savedMesh![i], true)) {
@@ -1142,16 +1228,25 @@ class Game {
           }
         }
       } else {
-        if(this.holding) {
-          this.holding.setParent(null);
-          this.savedMesh?.push(this.holding);
-          this.holding = null;
+        if (this.holding) {
+          console.log(this.holding);
+          if (this.holding.name.includes("new")) {
+            console.log("unlock mesh");
+            this.holding.setParent(null);
+            this.savedMesh?.push(this.holding);
+            this.holding = null;
+          } else if (this.holding.name.includes("Plane")) {
+            console.log("unlock plane");
+            this.holding.setParent(this.xrCamera);
+            this.savedMesh?.push(this.holding);
+            this.holding = null;
+          }
         }
       }
     }
   }
 
-  // Menu shows up when left squeeze button is hold
+  // Menu shows up and resets when left squeeze button is hold
   private onLeftSqueeze(component?: WebXRControllerComponent) {
     if (component?.pressed) {
       this.pickerPlane!.visibility = 1;
@@ -1164,6 +1259,36 @@ class Game {
         this.pickerPlane!.visibility = 0;
         this.pickerPlane!.isPickable = false;
       }
+      this.openedBoardPlane = false;
+      this.openedConfigPlane = false;
+      this.openedMeshPlane = false;
+      this.openedNotepadPlane = false;
+      this.meshPlane!.isVisible = false;
+      this.meshPlane!.isPickable = false;
+      this.sampleBox!.isVisible = false;
+      this.sampleBox!.isPickable = false;
+      this.sampleSphere!.isVisible = false;
+      this.sampleSphere!.isPickable = false;
+      this.sampleCylinder!.isVisible = false;
+      this.sampleCylinder!.isPickable = false;
+      this.configPlane!.isVisible = false;
+      this.configPlane!.isPickable = false;
+      this.notepadPlane!.isVisible = false;
+      this.notepadPlane!.isPickable = false;
+      this.boardPlane!.isVisible = false;
+      this.boardPlane!.isPickable = false;
+      this.meshPlane!.parent = this.meshPlaneTransform;
+      this.configPlane!.parent = this.configPlaneTransform;
+      this.boardPlane!.parent = this.boardPlaneTransform;
+      this.notepadPlane!.parent = this.notepadPlaneTransform;
+      this.meshPlane!.position = new Vector3(0, 0, 0);
+      this.configPlane!.position = new Vector3(0, 0, 0);
+      this.boardPlane!.position = new Vector3(0, 0, 0);
+      this.notepadPlane!.position = new Vector3(0, 0, 0);
+      this.meshPlane!.rotation = new Vector3(0, 0, 0);
+      this.configPlane!.rotation = new Vector3(0, 0, 0);
+      this.boardPlane!.rotation = new Vector3(0, 0, 0);
+      this.notepadPlane!.rotation = new Vector3(0, 0, 0);
     }
   }
 
@@ -1411,7 +1536,7 @@ class Game {
   // Map Zoom in/out
   private onLeftThumbStick(component?: WebXRControllerComponent) {
     if (component?.changes.axes) {
-      if(this.mapMode == true){
+      if (this.mapMode == true) {
         // View-directed steering
         // Get the current camera direction
         var directionVector = this.xrCamera!.getDirection(Axis.Z);
