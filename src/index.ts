@@ -7,7 +7,8 @@ import { Engine } from "@babylonjs/core/Engines/engine";
 import { Scene } from "@babylonjs/core/scene";
 import { Vector3, Color3, Space, Color4, Plane } from "@babylonjs/core/Maths/math";
 import { UniversalCamera } from "@babylonjs/core/Cameras/universalCamera";
-import { WebXRControllerComponent } from "@babylonjs/core/XR/motionController/webXRControllercomponent";
+import { WebXRControllerComponent } from
+  "@babylonjs/core/XR/motionController/webXRControllercomponent";
 import { WebXRInputSource } from "@babylonjs/core/XR/webXRInputSource";
 import { WebXRCamera } from "@babylonjs/core/XR/webXRCamera";
 import { WebXRSessionManager } from "@babylonjs/core/XR/webXRSessionManager";
@@ -26,24 +27,23 @@ import { InstancedMesh } from "@babylonjs/core/Meshes/instancedMesh";
 import { Ray } from "@babylonjs/core/Culling/ray";
 import { Axis } from "@babylonjs/core/Maths/math.axis";
 import { Quaternion } from "@babylonjs/core/Maths/math.vector";
-import { AssetsManager } from "@babylonjs/core/Misc";
+import { AdvancedTimer, AssetsManager } from "@babylonjs/core/Misc";
 import { Animation } from "@babylonjs/core/Animations/animation";
 import { HighlightLayer } from "@babylonjs/core";
-import { GUI3DManager } from "@babylonjs/gui/3D/gui3DManager"
+import { GUI3DManager } from "@babylonjs/gui/3D/gui3DManager";
 import { Control } from "@babylonjs/gui/2D/controls";
-import { Button3D } from "@babylonjs/gui/3D/controls/button3D"
-import { ColorPicker } from "@babylonjs/gui/2D/controls/colorpicker"
-import { StackPanel } from "@babylonjs/gui/2D/controls/stackPanel"
-import { Checkbox } from "@babylonjs/gui/2D/controls/checkbox"
-import { Slider } from "@babylonjs/gui/2D/controls/sliders/slider"
-import { RadioButton } from "@babylonjs/gui/2D/controls/radioButton"
-import { HolographicButton } from "@babylonjs/gui/3D/controls/holographicButton"
-import { TextBlock } from "@babylonjs/gui/2D/controls/textBlock"
+import { Button3D } from "@babylonjs/gui/3D/controls/button3D";
+import { ColorPicker } from "@babylonjs/gui/2D/controls/colorpicker";
+import { StackPanel } from "@babylonjs/gui/2D/controls/stackPanel";
+import { Checkbox } from "@babylonjs/gui/2D/controls/checkbox";
+import { Slider } from "@babylonjs/gui/2D/controls/sliders/slider";
+import { RadioButton } from "@babylonjs/gui/2D/controls/radioButton";
+import { VirtualKeyboard } from "@babylonjs/gui/2D/controls/virtualKeyboard";
+import { TextBlock } from "@babylonjs/gui/2D/controls/textBlock";
+import { InputText } from "@babylonjs/gui/2D/controls/inputText";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
-import { AdvancedDynamicTexture } from "@babylonjs/gui/2D/advancedDynamicTexture"
-import { StackPanel3D } from "@babylonjs/gui/3D/controls/stackPanel3D"
-import { PlanePanel } from "@babylonjs/gui/3D/controls/planePanel"
-import { CylinderPanel } from "@babylonjs/gui/3D/controls/cylinderPanel"
+import { AdvancedDynamicTexture } from "@babylonjs/gui/2D/advancedDynamicTexture";
+
 
 // Side effects
 import "@babylonjs/loaders/glTF/2.0/glTFLoader"
@@ -87,6 +87,7 @@ class Game {
   private selectedMesh: Mesh | null;
   private selectedInstancedMesh: InstancedMesh | null;
   private selectedMaterial: StandardMaterial | null;
+  private controllerGuiTransform: TransformNode | null;
 
   private configurableMesh: Mesh | null;
   private moveSpeed: number;
@@ -134,6 +135,8 @@ class Game {
     this.selectedMesh = null;
     this.selectedInstancedMesh = null;
     this.selectedMaterial = null;
+    this.controllerGuiTransform = null;
+
     this.configurableMesh = null;
     this.moveSpeed = 3;
 
@@ -308,9 +311,9 @@ class Game {
     // The manager automates some of the GUI creation steps
     var guiManager = new GUI3DManager(this.scene);
 
-    var controllerGuiTransform = new TransformNode("controllerGuiTransform", this.scene);
-    controllerGuiTransform.position = new Vector3(-.1, -.1, -.3);
-    controllerGuiTransform.rotation = new Vector3(Math.PI * .3, Math.PI * .5, 0);
+    this.controllerGuiTransform = new TransformNode("controllerGuiTransform", this.scene);
+    this.controllerGuiTransform.position = new Vector3(-.1, -.1, -.3);
+    this.controllerGuiTransform.rotation = new Vector3(Math.PI * .3, Math.PI * .5, 0);
 
     // Create a night mode button
     var nightModeButton = new Button3D("nightModeButton");
@@ -320,7 +323,7 @@ class Game {
     var nightModeButtonTransform = new TransformNode("nightModeButtonTransform", this.scene);
     nightModeButtonTransform.position = new Vector3(0, .06, .005);
     nightModeButtonTransform.rotation = new Vector3(10 * Math.PI / 180, 0, 0);
-    nightModeButtonTransform.parent = controllerGuiTransform;
+    nightModeButtonTransform.parent = this.controllerGuiTransform;
     nightModeButton.linkToTransformNode(nightModeButtonTransform);
 
     // Create the night mode button text
@@ -374,13 +377,13 @@ class Game {
       }
     });
 
-    // Create a map mode button
+    // Create a map mode button3D
     var mapModeButton = new Button3D("mapModeButton");
     guiManager.addControl(mapModeButton);
     mapModeButton.scaling = new Vector3(.1, .05, .1);
 
     var mapModeButtonTransform = new TransformNode("mapModeButtonTransform", this.scene);
-    mapModeButtonTransform.parent = controllerGuiTransform;
+    mapModeButtonTransform.parent = this.controllerGuiTransform;
     mapModeButton.linkToTransformNode(mapModeButtonTransform);
 
     var mapModeButtonText = new TextBlock();
@@ -392,6 +395,106 @@ class Game {
     mapModeButtonText.rotation = Math.PI;
     mapModeButton.content = mapModeButtonText;
 
+    // Create a notepad button
+    var notepadButton = new Button3D("notepadButton");
+    guiManager.addControl(notepadButton);
+    notepadButton.scaling = new Vector3(.1, .05, .1);
+
+    var notepadButtonTransform = new TransformNode("notepadButtonTransform", this.scene);
+    notepadButtonTransform.position = new Vector3(.12, 0, 0);
+    notepadButtonTransform.parent = this.controllerGuiTransform;
+    notepadButton.linkToTransformNode(notepadButtonTransform);
+
+    var notepadButtonText = new TextBlock();
+    notepadButtonText.text = "Notepad";
+    notepadButtonText.color = "white";
+    notepadButtonText.fontSize = 12;
+    notepadButtonText.scaleX = 2;
+    notepadButtonText.scaleY = 4;
+    notepadButtonText.rotation = Math.PI;
+    notepadButton.content = notepadButtonText;
+
+    var notepadPlane = MeshBuilder.CreatePlane("notepadPlane",
+      { width: 0.5, height: 0.3 }, this.scene);
+    var notepadPlaneTransform = new TransformNode("notepadPlaneTransform");
+    notepadPlaneTransform.position = new Vector3(0, -.25, 0);
+    notepadPlaneTransform.rotation = new Vector3(150 * Math.PI / 180, Math.PI, 0);
+    notepadPlane.parent = notepadPlaneTransform;
+    notepadPlaneTransform.parent = this.controllerGuiTransform;
+    notepadPlane.isVisible = false;
+    notepadPlane.isPickable = false;
+
+    var notepadTexture = AdvancedDynamicTexture.CreateForMesh(notepadPlane, 500, 300);
+    notepadTexture.background = (new Color4(.5, .5, .5, .75)).toHexString();
+
+    var notepadPanel = new StackPanel("notepadPanel");
+    notepadPanel.widthInPixels = 500;
+    notepadPanel.heightInPixels = 300;
+    notepadPanel.isVertical = true;
+    notepadTexture.addControl(notepadPanel);
+
+    var notepadMessagePanel = new StackPanel("notepadMessagePanel");
+    notepadMessagePanel.widthInPixels = 500;
+    notepadMessagePanel.heightInPixels = 270;
+    notepadMessagePanel.verticalAlignment = StackPanel.VERTICAL_ALIGNMENT_TOP;
+    notepadPanel.addControl(notepadMessagePanel);
+
+    var notepadInput = new InputText("notepadInput");
+    notepadInput.width = "500px";
+    notepadInput.height = "30px";
+    notepadInput.maxWidth = "500px";
+    notepadInput.color = "white";
+    notepadInput.background = "transparent";
+    notepadInput.thickness = 1;
+    notepadInput.focusedBackground = "transparent";
+    notepadInput.verticalAlignment = InputText.VERTICAL_ALIGNMENT_BOTTOM;
+    notepadPanel.addControl(notepadInput);
+
+    var openedNotepadPlane = false;
+    notepadButton.onPointerDownObservable.add(() => {
+      if (openedNotepadPlane) {
+        notepadPlane.isVisible = false;
+        notepadPlane.isPickable = false;
+      } else {
+        notepadPlane.isVisible = true;
+        notepadPlane.isPickable = true;
+        configPlane.isVisible = false;
+        configPlane.isPickable = false;
+        openedConfigPlane = false;
+      }
+      openedNotepadPlane = !openedNotepadPlane;
+    });
+
+    var keyboard = VirtualKeyboard.CreateDefaultLayout("keyboard");
+    keyboard.background = (new Color4(.5, .5, .5, .75)).toHexString();
+    keyboard.verticalAlignment = VirtualKeyboard.VERTICAL_ALIGNMENT_BOTTOM;
+    keyboard.paddingBottomInPixels = 30;
+    notepadTexture.addControl(keyboard);
+    keyboard.connect(notepadInput);
+
+    keyboard.onKeyPressObservable.add((data) => {
+      if (data == "\u21B5") {
+        var container = new StackPanel();
+        container.isVertical = true;
+        container.verticalAlignment = StackPanel.VERTICAL_ALIGNMENT_BOTTOM;
+        container.horizontalAlignment = StackPanel.HORIZONTAL_ALIGNMENT_LEFT;
+        notepadMessagePanel.addControl(container);
+
+        var message = new TextBlock();
+        message.text = notepadInput.text;
+        message.color = 'white';
+        message.width = '500px';
+        message.height = '30px';
+        message.fontSize = '20px';
+        message.left = '10px';
+        message.textWrapping = true;
+        message.verticalAlignment = StackPanel.VERTICAL_ALIGNMENT_BOTTOM;
+        message.textHorizontalAlignment = TextBlock.HORIZONTAL_ALIGNMENT_LEFT;
+        container.addControl(message);
+        notepadInput.text = '';;
+      }
+    })
+
     // Create a locomotion mode button
     var locoModeButton = new Button3D("locoModeButton");
     guiManager.addControl(locoModeButton);
@@ -400,7 +503,7 @@ class Game {
     var locoModeButtonTransform = new TransformNode("locoModeButtonTransform", this.scene);
     locoModeButtonTransform.position = new Vector3(0, -.06, .005);
     locoModeButtonTransform.rotation = new Vector3(-10 * Math.PI / 180, 0, 0);
-    locoModeButtonTransform.parent = controllerGuiTransform;
+    locoModeButtonTransform.parent = this.controllerGuiTransform;
     locoModeButton.linkToTransformNode(locoModeButtonTransform);
 
     var locoModeButtonText = new TextBlock();
@@ -418,8 +521,9 @@ class Game {
     configPlaneTransform.position = new Vector3(0, -.25, 0);
     configPlaneTransform.rotation = new Vector3(150 * Math.PI / 180, Math.PI, 0);
     configPlane.parent = configPlaneTransform;
-    configPlaneTransform.parent = controllerGuiTransform;
+    configPlaneTransform.parent = this.controllerGuiTransform;
     configPlane.isVisible = false;
+    configPlane.isPickable = false;
 
     var configTexture = AdvancedDynamicTexture.CreateForMesh(configPlane, 260, 230);
     configTexture.background = (new Color4(.5, .5, .5, .75)).toHexString();
@@ -478,42 +582,49 @@ class Game {
     moveSpeedSlider.paddingTopInPixels = 5;
 
     // Text headers for the radio buttons
-    var locoModeRadio1Header = Control.AddHeader(locoModeRadio1, "View directed move", "230px", {isHorizontal: true, controlFirst: true});
+    var locoModeRadio1Header = Control.AddHeader(locoModeRadio1, "View directed move", "230px",
+      { isHorizontal: true, controlFirst: true });
     locoModeRadio1Header.horizontalAlignment = StackPanel.HORIZONTAL_ALIGNMENT_LEFT;
     locoModeRadio1Header.height = "30px";
     locoModeRadio1Header.fontSize = "20px";
     locoModeRadio1Header.color = "white";
     locoModePanel.addControl(locoModeRadio1Header);
 
-    var locoModeRadio2Header = Control.AddHeader(locoModeRadio2, "Hand directed move", "230px", {isHorizontal: true, controlFirst: true});
+    var locoModeRadio2Header = Control.AddHeader(locoModeRadio2, "Hand directed move", "230px",
+      { isHorizontal: true, controlFirst: true });
     locoModeRadio2Header.horizontalAlignment = StackPanel.HORIZONTAL_ALIGNMENT_LEFT;
     locoModeRadio2Header.height = "30px";
     locoModeRadio2Header.fontSize = "20px";
     locoModeRadio2Header.color = "white";
     locoModePanel.addControl(locoModeRadio2Header);
 
-    var locoModeRadio3Header = Control.AddHeader(locoModeRadio3, "Directed teleportation", "230px", {isHorizontal: true, controlFirst: true});
+    var locoModeRadio3Header = Control.AddHeader(locoModeRadio3, "Directed teleportation", "230px",
+      { isHorizontal: true, controlFirst: true });
     locoModeRadio3Header.horizontalAlignment = StackPanel.HORIZONTAL_ALIGNMENT_LEFT;
     locoModeRadio3Header.height = "30px";
     locoModeRadio3Header.fontSize = "20px";
     locoModeRadio3Header.color = "white";
     locoModePanel.addControl(locoModeRadio3Header);
 
-    var locoModeRadio4Header = Control.AddHeader(locoModeRadio4, "Visualized teleportation", "230px", {isHorizontal: true, controlFirst: true});
+    var locoModeRadio4Header = Control.AddHeader(locoModeRadio4, "Visualized teleportation",
+      "230px", { isHorizontal: true, controlFirst: true });
     locoModeRadio4Header.horizontalAlignment = StackPanel.HORIZONTAL_ALIGNMENT_LEFT;
     locoModeRadio4Header.height = "30px";
     locoModeRadio4Header.fontSize = "20px";
     locoModeRadio4Header.color = "white";
     locoModePanel.addControl(locoModeRadio4Header);
 
-    var flyModeCheckboxHeader = Control.AddHeader(flyModeCheckbox, "Fly mode", "230px", {isHorizontal: true, controlFirst: true});
+    var flyModeCheckboxHeader = Control.AddHeader(flyModeCheckbox, "Fly mode", "230px",
+      { isHorizontal: true, controlFirst: true });
     flyModeCheckboxHeader.horizontalAlignment = StackPanel.HORIZONTAL_ALIGNMENT_LEFT;
     flyModeCheckboxHeader.height = "30px";
     flyModeCheckboxHeader.fontSize = "20px";
     flyModeCheckboxHeader.color = "white";
     locoModePanel.addControl(flyModeCheckboxHeader);
 
-    var moveSpeedSliderHeader = Control.AddHeader(moveSpeedSlider, "Move speed: " + this.moveSpeed.toFixed(1).toString() + "m/s", "28px", {isHorizontal: false, controlFirst: false});
+    var moveSpeedSliderHeader = Control.AddHeader(moveSpeedSlider,
+      "Move speed: " + this.moveSpeed.toFixed(1).toString() + "m/s", "28px",
+      { isHorizontal: false, controlFirst: false });
     moveSpeedSliderHeader.horizontalAlignment = StackPanel.HORIZONTAL_ALIGNMENT_LEFT;
     moveSpeedSliderHeader.verticalAlignment = StackPanel.VERTICAL_ALIGNMENT_TOP;
     moveSpeedSliderHeader.paddingTopInPixels = 5;
@@ -527,8 +638,13 @@ class Game {
     locoModeButton.onPointerDownObservable.add(() => {
       if (openedConfigPlane) {
         configPlane.isVisible = false;
+        configPlane.isPickable = false;
       } else {
         configPlane.isVisible = true;
+        configPlane.isPickable = true;
+        notepadPlane.isVisible = false;
+        notepadPlane.isPickable = false;
+        openedNotepadPlane = false;
       }
       openedConfigPlane = !openedConfigPlane;
     });
@@ -579,8 +695,24 @@ class Game {
 
         // resume original fly mode and locomotion mode
         this.flyMode = this.originalFlyMode;
+        flyModeCheckbox.isChecked = this.flyMode;
         this.locomotionMode = this.originalLocomotionMode;
-
+        switch (this.locomotionMode) {
+          case 0:
+            locoModeRadio1.isChecked = true;
+            break;
+          case 1:
+            locoModeRadio2.isChecked = true;
+            break;
+          case 2:
+            locoModeRadio3.isChecked = true;
+            break;
+          case 3:
+            locoModeRadio4.isChecked = true;
+            break;
+          default:
+            break;
+        }
         this.mapMode = false;
       } else {
         // save the original position
@@ -592,11 +724,14 @@ class Game {
         this.cameraOriginalPosition.z = this.xrCamera!.position.z;
         this.world!.position.y -= 20;
 
-        // save original fly and locomotion mode, set fly mode as true and set locomotion mode as visualizedtele
+        // save original fly and locomotion mode,
+        // set fly mode as true and set locomotion mode as visualizedtele
         this.originalLocomotionMode = this.locomotionMode;
         this.originalFlyMode = this.flyMode;
+        flyModeCheckbox.isChecked = true;
         this.flyMode = true;
         this.locomotionMode = LocomotionMode.visualizedTele;
+        locoModeRadio4.isChecked = true;
 
         this.mapMode = true;
       }
@@ -617,13 +752,15 @@ class Game {
 
     var pickerPlaneTransform = new TransformNode("pickerPlaneTransform", this.scene);
     pickerPlaneTransform.position = new Vector3(-.13, 0, 0);
-    pickerPlaneTransform.parent = controllerGuiTransform;
+    pickerPlaneTransform.parent = this.controllerGuiTransform;
     this.pickerPlane.parent = pickerPlaneTransform;
     this.pickerPlane.isPickable = false;
     this.pickerPlane.visibility = 0;
 
+    // Exclude planes from highlight layer so they won't glow when intersect
     this.highlight.addExcludedMesh(this.pickerPlane);
     this.highlight.addExcludedMesh(configPlane);
+    this.highlight.addExcludedMesh(notepadPlane);
 
     // Attach the laser pointer to the right controller when it is connected
     xrHelper.input.onControllerAddedObservable.add((inputSource) => {
@@ -631,14 +768,14 @@ class Game {
         this.rightController = inputSource;
       } else {
         this.leftController = inputSource;
-        controllerGuiTransform.parent = this.leftController.pointer!;
+        this.controllerGuiTransform!.parent = this.leftController.pointer!;
       }
     });
 
     // Don't forget to deparent objects from the controllers or they will be destroyed!
     xrHelper.input.onControllerRemovedObservable.add((inputSource) => {
       if (inputSource.uniqueId.endsWith("left")) {
-        controllerGuiTransform.parent = null;
+        this.controllerGuiTransform!.parent = null;
       }
     });
   }
@@ -650,8 +787,8 @@ class Game {
         if (pointerInfo.pickInfo?.hit) {
           console.log("selected mesh: " + pointerInfo.pickInfo.pickedMesh?.name);
           if (pointerInfo.pickInfo.pickedMesh?.name.includes("picker")) {
-            console.log("hit plane");
-          } else if (pointerInfo.pickInfo.pickedMesh?.name.startsWith("sptp") &&
+          } else if ((pointerInfo.pickInfo.pickedMesh?.name.startsWith("sptp") ||
+            (pointerInfo.pickInfo.pickedMesh?.name.startsWith("new"))) &&
             !(pointerInfo.pickInfo.pickedMesh?.name.includes("concrete") ||
               pointerInfo.pickInfo.pickedMesh?.name.includes("segment") ||
               pointerInfo.pickInfo.pickedMesh?.name.includes("grass"))) {
@@ -664,7 +801,8 @@ class Game {
             this.picker!.onValueChangedObservable.clear();
             if (pointerInfo!.pickInfo!.pickedMesh instanceof InstancedMesh) {
               this.selectedInstancedMesh = <InstancedMesh>pointerInfo.pickInfo.pickedMesh;
-              this.selectedMaterial = <StandardMaterial>this.selectedInstancedMesh.sourceMesh.material!.clone("selectedMaterial");
+              this.selectedMaterial = <StandardMaterial>this.selectedInstancedMesh.
+                sourceMesh.material!.clone("selectedMaterial");
               console.log("instanced. material: " + this.selectedMaterial!.emissiveColor);
               this.highlight.addMesh(this.selectedInstancedMesh.sourceMesh, Color3.White());
               this.picker!.value = this.selectedMaterial.emissiveColor;
@@ -674,7 +812,8 @@ class Game {
               });
             } else {
               this.selectedMesh = <Mesh>pointerInfo.pickInfo.pickedMesh;
-              this.selectedMaterial = <StandardMaterial>this.selectedMesh.material!.clone("selectedMaterial");
+              this.selectedMaterial = <StandardMaterial>this.selectedMesh.material!.
+                clone("selectedMaterial");
               console.log("mesh. material: " + this.selectedMaterial!.emissiveColor);
               this.highlight.addMesh(this.selectedMesh, Color3.White());
               this.picker!.value = this.selectedMaterial.emissiveColor;
@@ -692,6 +831,14 @@ class Game {
             this.pickerPlane!.isPickable = false;
             this.picker!.onValueChangedObservable.clear();
           }
+        } else {
+          this.selectedInstancedMesh = null;
+          this.selectedMesh = null;
+          this.selectedMaterial = null;
+          this.highlight.removeAllMeshes();
+          this.pickerPlane!.visibility = 0;
+          this.pickerPlane!.isPickable = false;
+          this.picker!.onValueChangedObservable.clear();
         }
       break;
     }
@@ -705,8 +852,62 @@ class Game {
 
   // Process event handlers for controller input
   private processControllerInput() {
-    this.onRightThumbstick(this.rightController?.motionController?.getComponent("xr-standard-thumbstick"));
-    this.onLeftThumbStick(this.leftController?.motionController?.getComponent("xr-standard-thumbstick"));
+    this.onLeftControllerMove(this.xrCamera!, this.leftController?.pointer);
+    this.onRightThumbstick(this.rightController?.motionController?.
+      getComponent("xr-standard-thumbstick"));
+    this.onLeftThumbStick(this.leftController?.motionController?.
+      getComponent("xr-standard-thumbstick"));
+    this.onLeftSqueeze(this.leftController?.motionController?.
+      getComponent("xr-standard-squeeze"));
+  }
+
+  // Menu shows up when left squeeze button is hold
+  private onLeftSqueeze(component?: WebXRControllerComponent) {
+    if (component?.pressed) {
+      this.pickerPlane!.visibility = 1;
+      this.pickerPlane!.isPickable = true;
+      this.controllerGuiTransform?.getChildMeshes().forEach((mesh) => {
+        mesh.visibility = 1;
+        mesh.isPickable = true;
+      });
+      if (this.selectedMaterial == null) {
+        this.pickerPlane!.visibility = 0;
+        this.pickerPlane!.isPickable = false;
+      }
+    }
+  }
+
+  // Menu shows up when user raises their left arm
+  // This could be done by more accurate calculations,
+  // but was implemented in a easy method due to time constrains.
+  private onLeftControllerMove(camera: WebXRCamera, controller?: AbstractMesh) {
+    if (camera != null && controller != null) {
+      if (camera.position.y - controller.position.y > .45 ||
+        camera.position.y - controller.position.y < -.3 ||
+        camera.position.subtract(controller.position).length() > .7) {
+        this.pickerPlane!.visibility = 0;
+        this.pickerPlane!.isPickable = false;
+        this.controllerGuiTransform?.getChildMeshes().forEach((mesh) => {
+          mesh.visibility = 0;
+          mesh.isPickable = false;
+        });
+        if (this.selectedMaterial == null) {
+          this.pickerPlane!.visibility = 0;
+          this.pickerPlane!.isPickable = false;
+        }
+      } else {
+        this.pickerPlane!.visibility = 1;
+        this.pickerPlane!.isPickable = true;
+        this.controllerGuiTransform?.getChildMeshes().forEach((mesh) => {
+          mesh.visibility = 1;
+          mesh.isPickable = true;
+        });
+        if (this.selectedMaterial == null) {
+          this.pickerPlane!.visibility = 0;
+          this.pickerPlane!.isPickable = false;
+        }
+      }
+    }
   }
 
   private onRightThumbstick(component?: WebXRControllerComponent) {
@@ -723,7 +924,8 @@ class Game {
           }
 
           // Use delta time to calculate the move distance based on speed of 3 m/sec
-        var moveDistance = -component.axes.y * (this.engine.getDeltaTime() / 1000) * this.moveSpeed;
+          var moveDistance = -component.axes.y * (this.engine.getDeltaTime() / 1000)
+            * this.moveSpeed;
 
           // Translate the camera forward
           this.xrCamera!.position.addInPlace(directionVector.scale(moveDistance));
@@ -751,7 +953,8 @@ class Game {
           }
 
           // Use delta time to calculate the move distance based on speed of 3 m/sec
-        var moveDistance = -component.axes.y * (this.engine.getDeltaTime() / 1000) * this.moveSpeed;
+          var moveDistance = -component.axes.y * (this.engine.getDeltaTime() / 1000)
+            * this.moveSpeed;
 
           // Translate the camera forward
           this.xrCamera!.position.addInPlace(directionVector.scale(moveDistance));
@@ -823,7 +1026,8 @@ class Game {
                 getViewerPose(this.xrSessionManager!.baseReferenceSpace)?.transform.position;
               this.workspaceUser!.position = this.teleportPoint!.add
                 (new Vector3(userPos?.x, .2, userPos?.z));
-              var userOri = this.xrSessionManager!.currentFrame?.getViewerPose(this.xrSessionManager!.baseReferenceSpace)?.transform.orientation;
+              var userOri = this.xrSessionManager!.currentFrame?.getViewerPose
+                (this.xrSessionManager!.baseReferenceSpace)?.transform.orientation;
               var userOriVec = new Quaternion(userOri?.x, userOri?.y, userOri?.z, userOri?.w).
                 toEulerAngles();
               this.workspaceUser!.rotation = userOriVec.multiply(new Vector3(0, 1, 0));
@@ -884,8 +1088,10 @@ class Game {
 
           // If we have a valid targer point, then teleport the user
           if (this.teleportPoint) {
-            this.xrCamera!.position.x = this.teleportPoint.x + this.worldOriginalPosition.x - this.world!.position.x;
-            this.xrCamera!.position.y = this.teleportPoint.y + this.xrCamera!.realWorldHeight + this.worldOriginalPosition.y - this.world!.position.y;
+            this.xrCamera!.position.x = this.teleportPoint.x + this.worldOriginalPosition.x
+              - this.world!.position.x;
+            this.xrCamera!.position.y = this.teleportPoint.y + this.xrCamera!.realWorldHeight
+              + this.worldOriginalPosition.y - this.world!.position.y;
             this.xrCamera!.position.z = this.teleportPoint.z + this.worldOriginalPosition.z - this.world!.position.z;
             this.teleportPoint = null;
             var cameraRotation = Quaternion.FromEulerAngles
