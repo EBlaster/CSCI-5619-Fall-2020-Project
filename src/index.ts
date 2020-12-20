@@ -1178,7 +1178,7 @@ class Game {
     this.onLeftSqueeze(this.leftController?.motionController?.
       getComponent("xr-standard-squeeze"));
     this.onRightSqueeze(this.rightController?.motionController?.
-      getComponent("xr-standard-thumbstick"));
+      getComponent("xr-standard-squeeze"));
   }
 
   // Grab an object when grip
