@@ -17,6 +17,6 @@ http://www-users.cselabs.umn.edu/~li001650/Project/
 ## Custom GUI Instructions:
 
 1. Raise left arm to open the GUI.
-2. Use right controller's laser pointer to interact with buttons and panels.
+2. Use right controller's laser pointer to interact with buttons, panels, and meshes.
 3. Use right grip button to drag panel and create new meshes.
 4. Use left grip button to reset and force show GUI.
